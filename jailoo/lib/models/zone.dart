@@ -1,14 +1,17 @@
+import 'package:latlong2/latlong.dart';
+
 class Zone {
   final int id;
-  final String name;        // Kyrgyz name: АТ-БАШЫ
-  final String nameEn;      // Romanized: At-Bashy
-  final String status;      // 'healthy' | 'recovering' | 'banned'
-  final int healthScore;    // 0–100
-  final int maxHerd;        // Max sheep at current health
-  final int safeDays;       // Days this zone can sustain grazing
+  final String name;
+  final String nameEn;
+  final String status; // 'healthy' | 'recovering' | 'banned'
+  final int healthScore; // 0-100
+  final int maxHerd;
+  final int safeDays;
   final int lastGrazedDaysAgo;
   final double lat;
   final double lng;
+  final List<LatLng> boundary;
 
   const Zone({
     required this.id,
@@ -21,5 +24,8 @@ class Zone {
     required this.lastGrazedDaysAgo,
     required this.lat,
     required this.lng,
+    required this.boundary,
   });
+
+  LatLng get center => LatLng(lat, lng);
 }
