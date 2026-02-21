@@ -52,6 +52,16 @@ class JailooColors {
     }
   }
 
+  // Hex strings for MapLibre GL layer properties
+  static String statusColorHex(String status) {
+    switch (status) {
+      case 'healthy':    return '#22C55E';
+      case 'recovering': return '#F59E0B';
+      case 'banned':     return '#EF4444';
+      default:           return '#71717A';
+    }
+  }
+
   static JailooColors of(BuildContext context) {
     return Theme.of(context).brightness == Brightness.dark ? dark : light;
   }
