@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/ai_service.dart';
 import '../data/zones.dart';
+import '../theme/colors.dart';
 
 class AiScreen extends StatefulWidget {
   const AiScreen({super.key});
@@ -49,44 +50,40 @@ class _AiScreenState extends State<AiScreen> {
   }
 
   @override
+  void dispose() {
+    _controller.dispose();
+    _scroll.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF111811),
+      backgroundColor: JailooColors.bg,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF111811),
+        backgroundColor: JailooColors.bg,
         elevation: 0,
-        title: const Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        scrolledUnderElevation: 0,
+        title: const Row(
           children: [
+            Icon(Icons.auto_awesome, size: 16, color: JailooColors.accent),
+            SizedBox(width: 8),
             Text(
-              'AI ПОМОЩНИК',
+              'AI Assistant',
               style: TextStyle(
-                fontFamily: 'BebasNeue',
-                fontSize: 20,
-                color: Color(0xFF2ECC71),
-                letterSpacing: 3,
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+                color: JailooColors.textPrimary,
               ),
-            ),
-            Text(
-              'Claude · отвечает по-русски',
-              style: TextStyle(fontSize: 10, color: Color(0xFF7A9A7A), letterSpacing: 1),
             ),
           ],
         ),
       ),
       body: Column(
         children: [
+          const Divider(height: 1, color: JailooColors.border),
           Expanded(
-            child: ListView.builder(
-              controller: _scroll,
-              padding: const EdgeInsets.all(16),
-              itemCount: _messages.length + (_loading ? 1 : 0),
-              itemBuilder: (context, index) {
-                if (index == _messages.length) return const _TypingIndicator();
-                final msg = _messages[index];
-                return _Bubble(role: msg['role']!, text: msg['text']!);
-              },
-            ),
+            child: _messages.isEmpty ? _buildEmptyState() : _buildMessages(),
           ),
           _buildInput(),
         ],
@@ -94,52 +91,112 @@ class _AiScreenState extends State<AiScreen> {
     );
   }
 
+  Widget _buildEmptyState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: JailooColors.surface,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: JailooColors.border),
+              ),
+              child: const Icon(
+                Icons.landscape_outlined,
+                color: JailooColors.textMuted,
+                size: 24,
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Ask about pastures',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+                color: JailooColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              'e.g. "I have 60 sheep, where should I go?"',
+              style: TextStyle(
+                fontSize: 13,
+                color: JailooColors.textMuted,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMessages() {
+    return ListView.builder(
+      controller: _scroll,
+      padding: const EdgeInsets.all(16),
+      itemCount: _messages.length + (_loading ? 1 : 0),
+      itemBuilder: (context, index) {
+        if (index == _messages.length) return const _LoadingBubble();
+        final msg = _messages[index];
+        return _Bubble(role: msg['role']!, text: msg['text']!);
+      },
+    );
+  }
+
   Widget _buildInput() {
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 10, 16, 24),
+      padding: EdgeInsets.fromLTRB(
+        16, 12, 16,
+        MediaQuery.of(context).padding.bottom + 12,
+      ),
       decoration: const BoxDecoration(
-        color: Color(0xFF111811),
-        border: Border(top: BorderSide(color: Color(0xFF1a2a1a))),
+        color: JailooColors.bg,
+        border: Border(top: BorderSide(color: JailooColors.border)),
       ),
       child: Row(
         children: [
           Expanded(
-            child: TextField(
-              controller: _controller,
-              style: const TextStyle(color: Color(0xFFE8F5E8), fontSize: 14),
-              decoration: InputDecoration(
-                hintText: 'Спросите о пастбище...',
-                hintStyle: const TextStyle(color: Color(0xFF4A6A4A), fontSize: 13),
-                filled: true,
-                fillColor: const Color(0xFF0A0F0A),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(24),
-                  borderSide: const BorderSide(color: Color(0xFF1a2a1a)),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(24),
-                  borderSide: const BorderSide(color: Color(0xFF1a2a1a)),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(24),
-                  borderSide: const BorderSide(color: Color(0xFF2ECC71), width: 1.5),
-                ),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+            child: Container(
+              decoration: BoxDecoration(
+                color: JailooColors.surface,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: JailooColors.border),
               ),
-              onSubmitted: (_) => _send(),
+              child: TextField(
+                controller: _controller,
+                style: const TextStyle(
+                  color: JailooColors.textPrimary,
+                  fontSize: 14,
+                ),
+                decoration: const InputDecoration(
+                  hintText: 'Ask a question...',
+                  hintStyle: TextStyle(color: JailooColors.textMuted, fontSize: 14),
+                  border: InputBorder.none,
+                  contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                ),
+                onSubmitted: (_) => _send(),
+              ),
             ),
           ),
-          const SizedBox(width: 10),
-          GestureDetector(
-            onTap: _send,
-            child: Container(
-              width: 44,
-              height: 44,
-              decoration: const BoxDecoration(
-                color: Color(0xFF2ECC71),
-                shape: BoxShape.circle,
+          const SizedBox(width: 8),
+          SizedBox(
+            width: 40,
+            height: 40,
+            child: IconButton(
+              onPressed: _send,
+              style: IconButton.styleFrom(
+                backgroundColor: JailooColors.accent,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
               ),
-              child: const Icon(Icons.arrow_upward, color: Color(0xFF0A0F0A), size: 20),
+              icon: const Icon(Icons.arrow_upward, color: JailooColors.bg, size: 18),
             ),
           ),
         ],
@@ -159,26 +216,22 @@ class _Bubble extends StatelessWidget {
     return Align(
       alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
-        constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.78),
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        constraints: BoxConstraints(
+          maxWidth: MediaQuery.of(context).size.width * 0.78,
+        ),
         decoration: BoxDecoration(
-          color: isUser ? const Color(0xFF2ECC71) : const Color(0xFF172017),
-          borderRadius: BorderRadius.only(
-            topLeft: const Radius.circular(16),
-            topRight: const Radius.circular(16),
-            bottomLeft: Radius.circular(isUser ? 16 : 4),
-            bottomRight: Radius.circular(isUser ? 4 : 16),
-          ),
-          border: isUser ? null : Border.all(color: const Color(0xFF1a2a1a)),
+          color: isUser ? JailooColors.accent : JailooColors.surface,
+          borderRadius: BorderRadius.circular(8),
+          border: isUser ? null : Border.all(color: JailooColors.border),
         ),
         child: Text(
           text,
           style: TextStyle(
             fontSize: 14,
-            color: isUser ? const Color(0xFF0A0F0A) : const Color(0xFFE8F5E8),
+            color: isUser ? JailooColors.bg : JailooColors.textPrimary,
             height: 1.5,
-            fontWeight: isUser ? FontWeight.w500 : FontWeight.normal,
           ),
         ),
       ),
@@ -186,27 +239,35 @@ class _Bubble extends StatelessWidget {
   }
 }
 
-class _TypingIndicator extends StatelessWidget {
-  const _TypingIndicator();
+class _LoadingBubble extends StatelessWidget {
+  const _LoadingBubble();
 
   @override
   Widget build(BuildContext context) {
     return Align(
       alignment: Alignment.centerLeft,
       child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(
-          color: const Color(0xFF172017),
-          borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(16),
-            topRight: Radius.circular(16),
-            bottomRight: Radius.circular(16),
-            bottomLeft: Radius.circular(4),
-          ),
-          border: Border.all(color: const Color(0xFF1a2a1a)),
+          color: JailooColors.surface,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: JailooColors.border),
         ),
-        child: const Text('...', style: TextStyle(color: Color(0xFF2ECC71), fontSize: 18, letterSpacing: 4)),
+        child: const SizedBox(
+          width: 24,
+          height: 16,
+          child: Center(
+            child: Text(
+              '...',
+              style: TextStyle(
+                color: JailooColors.textMuted,
+                fontSize: 16,
+                letterSpacing: 3,
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
