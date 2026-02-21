@@ -26,7 +26,7 @@ List<LatLng> _circle(double lat, double lng, {double radiusDeg = 0.055, int poin
 
 // User's hardcoded position — on the main A-365 highway in Naryn valley.
 // In production this comes from Geolocator.getCurrentPosition().
-final kUserLocation = LatLng(41.43, 75.99);
+final kUserLocation = const LatLng(41.43, 75.99);
 
 // Zone centers are spaced so that for any pair (a, b):
 //   (Δlat / (2·r))² + (Δlng / (2·r·lngScale))² > 1
@@ -178,8 +178,8 @@ int _statusPriority(String status) {
   }
 }
 
-late final List<Zone> kZonesByRenderOrder = List.of(kZones)
+final List<Zone> kZonesByRenderOrder = List.of(kZones)
   ..sort((a, b) => _statusPriority(a.status).compareTo(_statusPriority(b.status)));
 
-late final List<Zone> kZonesByTapOrder = List.of(kZones)
+final List<Zone> kZonesByTapOrder = List.of(kZones)
   ..sort((a, b) => _statusPriority(b.status).compareTo(_statusPriority(a.status)));
