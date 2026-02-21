@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/colors.dart';
 
 class StatusBadge extends StatelessWidget {
   final String status;
@@ -6,39 +7,44 @@ class StatusBadge extends StatelessWidget {
 
   String get _label {
     switch (status) {
-      case 'healthy':    return '● БЕЗОПАСНО';
-      case 'recovering': return '● ВОССТАНОВЛЕНИЕ';
-      case 'banned':     return '● ЗАПРЕТ';
+      case 'healthy':    return 'Safe';
+      case 'recovering': return 'Recovering';
+      case 'banned':     return 'Banned';
       default:           return status;
-    }
-  }
-
-  Color get _color {
-    switch (status) {
-      case 'healthy':    return const Color(0xFF2ECC71);
-      case 'recovering': return const Color(0xFFF4D03F);
-      case 'banned':     return const Color(0xFFE74C3C);
-      default:           return Colors.grey;
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final color = JailooColors.statusColor(status);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: _color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: _color.withValues(alpha: 0.35)),
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
-      child: Text(
-        _label,
-        style: TextStyle(
-          fontFamily: 'DMMono',
-          fontSize: 10,
-          color: _color,
-          letterSpacing: 1.5,
-        ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 6,
+            height: 6,
+            decoration: BoxDecoration(
+              color: color,
+              shape: BoxShape.circle,
+            ),
+          ),
+          const SizedBox(width: 6),
+          Text(
+            _label,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+              color: color,
+            ),
+          ),
+        ],
       ),
     );
   }
