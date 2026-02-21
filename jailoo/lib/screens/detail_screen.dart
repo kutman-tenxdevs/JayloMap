@@ -187,9 +187,9 @@ class _ZoneMap extends StatefulWidget {
 }
 
 class _ZoneMapState extends State<_ZoneMap> {
-  MaplibreMapController? _ctrl;
+  MapLibreMapController? _ctrl;
 
-  void _onMapCreated(MaplibreMapController controller) {
+  void _onMapCreated(MapLibreMapController controller) {
     _ctrl = controller;
   }
 
@@ -243,7 +243,7 @@ class _ZoneMapState extends State<_ZoneMap> {
 
     return SizedBox(
       height: 180,
-      child: MaplibreMap(
+      child: MapLibreMap(
         styleString: styleUrl,
         initialCameraPosition: CameraPosition(
           target: LatLng(widget.zone.lat, widget.zone.lng),
