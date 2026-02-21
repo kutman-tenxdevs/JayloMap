@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 import 'package:flutter/material.dart';
@@ -38,6 +39,10 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   bool _fetchingRoute = false;
   bool _reportPressed = false;
 
+  // Route draw animation (progressively adds points to the GeoJSON source)
+  Timer? _routeDrawTimer;
+  int _routeDrawProgress = 0;
+
   // Annotation handles (needed to remove/replace them)
   Circle? _userRingCircle;
   Circle? _destCircle;
@@ -61,6 +66,8 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   void dispose() {
     _pulseController.removeListener(_updatePulseRing);
     _pulseController.dispose();
+    _routeDrawTimer?.cancel();
+    _highlightPulseTimer?.cancel();
     super.dispose();
   }
 
@@ -171,23 +178,45 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
     );
   }
 
+  // Pulse animation for the selected zone highlight
+  Timer? _highlightPulseTimer;
+  bool _highlightPulseUp = true;
+
   Future<void> _updateHighlight(MapLibreMapController ctrl, Zone? zone) async {
-    try {
-      if (zone == null) {
-        await ctrl.setLayerProperties(
-          'zones-highlight',
-          FillLayerProperties(fillColor: '#22C55E', fillOpacity: 0.28),
-        );
+    _highlightPulseTimer?.cancel();
+    _highlightPulseTimer = null;
+
+    if (zone == null) {
+      try {
+        // Hide highlight by matching no zone
         await ctrl.setFilter('zones-highlight', ['==', ['get', 'id'], -1]);
-      } else {
-        final color = JailooColors.statusColorHex(zone.status);
+      } catch (_) {}
+      return;
+    }
+
+    final color = JailooColors.statusColorHex(zone.status);
+    try {
+      await ctrl.setFilter('zones-highlight', ['==', ['get', 'id'], zone.id]);
+      await ctrl.setLayerProperties(
+        'zones-highlight',
+        FillLayerProperties(fillColor: color, fillOpacity: 0.28),
+      );
+    } catch (_) { return; }
+
+    // Gentle opacity pulse on the highlight layer to draw attention
+    double opacity = 0.28;
+    _highlightPulseUp = true;
+    _highlightPulseTimer = Timer.periodic(const Duration(milliseconds: 40), (_) async {
+      opacity += _highlightPulseUp ? 0.008 : -0.008;
+      if (opacity >= 0.40) _highlightPulseUp = false;
+      if (opacity <= 0.18) _highlightPulseUp = true;
+      try {
         await ctrl.setLayerProperties(
           'zones-highlight',
-          FillLayerProperties(fillColor: color, fillOpacity: 0.28),
+          FillLayerProperties(fillColor: color, fillOpacity: opacity),
         );
-        await ctrl.setFilter('zones-highlight', ['==', ['get', 'id'], zone.id]);
-      }
-    } catch (_) {}
+      } catch (_) {}
+    });
   }
 
   // ---------------------------------------------------------------------------
@@ -250,9 +279,10 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   // Route
   // ---------------------------------------------------------------------------
 
-  Future<void> _addRouteToMap(MapLibreMapController ctrl, List<LatLng> pts) async {
-    final coords = pts.map((p) => [p.longitude, p.latitude]).toList();
-    final geojson = jsonEncode({
+  // Builds a LineString GeoJSON from the first [count] points.
+  String _routeGeojson(List<LatLng> pts, int count) {
+    final coords = pts.take(count).map((p) => [p.longitude, p.latitude]).toList();
+    return jsonEncode({
       'type': 'FeatureCollection',
       'features': [
         {
@@ -262,17 +292,26 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
         }
       ],
     });
+  }
 
-    // Remove stale layers/source if present
+  // Creates the route source/layers then progressively draws the line using
+  // setGeoJsonSource — the same technique as MapLibre GL's animated-route demos.
+  Future<void> _addRouteToMap(MapLibreMapController ctrl, List<LatLng> pts) async {
+    _routeDrawTimer?.cancel();
+    _routeDrawProgress = 0;
+
+    // Seed the source with just the start point so layers can be created
+    final seed = _routeGeojson(pts, 2);
+
     for (final id in ['route-line', 'route-outline']) {
       try { await ctrl.removeLayer(id); } catch (_) {}
     }
     try { await ctrl.removeSource('route'); } catch (_) {}
 
-    await ctrl.addSource('route', GeojsonSourceProperties(data: geojson));
+    await ctrl.addSource('route', GeojsonSourceProperties(data: seed));
     await ctrl.addLineLayer(
       'route', 'route-outline',
-      LineLayerProperties(
+      const LineLayerProperties(
         lineColor: '#FFFFFF',
         lineWidth: 7.5,
         lineOpacity: 0.6,
@@ -282,16 +321,27 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
     );
     await ctrl.addLineLayer(
       'route', 'route-line',
-      LineLayerProperties(
+      const LineLayerProperties(
         lineColor: '#22C55E',
         lineWidth: 4.5,
         lineCap: 'round',
         lineJoin: 'round',
       ),
     );
+
+    // Progressively extend the line — ~60 frames over the full route length
+    final step = max(1, (pts.length / 60).ceil());
+    _routeDrawTimer = Timer.periodic(const Duration(milliseconds: 16), (t) async {
+      _routeDrawProgress = min(_routeDrawProgress + step, pts.length);
+      try {
+        await ctrl.setGeoJsonSource('route', _routeGeojson(pts, _routeDrawProgress));
+      } catch (_) {}
+      if (_routeDrawProgress >= pts.length) t.cancel();
+    });
   }
 
   Future<void> _removeRouteFromMap(MapLibreMapController ctrl) async {
+    _routeDrawTimer?.cancel();
     for (final id in ['route-line', 'route-outline']) {
       try { await ctrl.removeLayer(id); } catch (_) {}
     }
