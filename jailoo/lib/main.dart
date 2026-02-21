@@ -1,16 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'models/herder_profile.dart';
 import 'theme/colors.dart';
 import 'theme/theme_provider.dart';
 import 'screens/map_screen.dart';
 import 'screens/ai_screen.dart';
+import 'screens/me_screen.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
   runApp(
-    ChangeNotifierProvider(
-      create: (_) => ThemeProvider(),
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => ThemeProvider()),
+        ChangeNotifierProvider(create: (_) => HerderProfile()),
+      ],
       child: const JailooApp(),
     ),
   );
@@ -89,6 +94,7 @@ class _AppShellState extends State<_AppShell> {
         children: const [
           MapScreen(),
           AiScreen(),
+          MeScreen(),
         ],
       ),
       bottomNavigationBar: Container(
@@ -112,6 +118,11 @@ class _AppShellState extends State<_AppShell> {
               icon: Icon(Icons.auto_awesome_outlined, color: c.textMuted, size: 20),
               selectedIcon: Icon(Icons.auto_awesome, color: c.accent, size: 20),
               label: 'AI',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.person_outline, color: c.textMuted, size: 20),
+              selectedIcon: Icon(Icons.person, color: c.accent, size: 20),
+              label: 'Me',
             ),
           ],
         ),
