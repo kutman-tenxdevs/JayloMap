@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:provider/provider.dart';
 import '../models/zone.dart';
 import '../theme/colors.dart';
+import '../theme/theme_provider.dart';
 import '../widgets/health_bar.dart';
 import '../widgets/status_badge.dart';
 import '../widgets/data_card.dart';
@@ -13,24 +15,25 @@ class DetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = JailooColors.of(context);
     final statusColor = JailooColors.statusColor(zone.status);
 
     return Scaffold(
-      backgroundColor: JailooColors.bg,
+      backgroundColor: c.bg,
       appBar: AppBar(
-        backgroundColor: JailooColors.bg,
+        backgroundColor: c.bg,
         elevation: 0,
         scrolledUnderElevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: JailooColors.textMuted, size: 20),
+          icon: Icon(Icons.arrow_back, color: c.textMuted, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
           zone.nameEn,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w500,
-            color: JailooColors.textPrimary,
+            color: c.textPrimary,
           ),
         ),
         actions: [
@@ -44,10 +47,8 @@ class DetailScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Divider(height: 1, color: JailooColors.border),
-
+            Divider(height: 1, color: c.border),
             _ZoneMap(zone: zone),
-
             Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
@@ -55,26 +56,21 @@ class DetailScreen extends StatelessWidget {
                 children: [
                   Text(
                     zone.name,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 28,
                       fontWeight: FontWeight.w700,
-                      color: JailooColors.textPrimary,
+                      color: c.textPrimary,
                       height: 1.1,
                     ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     '${zone.healthScore}/100 health',
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: statusColor,
-                    ),
+                    style: TextStyle(fontSize: 13, color: statusColor),
                   ),
                   const SizedBox(height: 16),
-
                   HealthBar(score: zone.healthScore),
                   const SizedBox(height: 20),
-
                   Row(
                     children: [
                       Expanded(
@@ -115,18 +111,17 @@ class DetailScreen extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 24),
-
                   SizedBox(
                     width: double.infinity,
                     height: 48,
                     child: FilledButton(
                       style: FilledButton.styleFrom(
                         backgroundColor: zone.status == 'banned'
-                            ? JailooColors.surface2
-                            : JailooColors.accent,
+                            ? c.surface2
+                            : c.accent,
                         foregroundColor: zone.status == 'banned'
-                            ? JailooColors.textMuted
-                            : JailooColors.bg,
+                            ? c.textMuted
+                            : Colors.white,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(8),
                         ),
@@ -137,14 +132,18 @@ class DetailScreen extends StatelessWidget {
                           : () {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
-                                  content: Text('Reported: grazing at ${zone.nameEn}'),
-                                  backgroundColor: JailooColors.surface,
+                                  content: Text(
+                                    'Reported: grazing at ${zone.nameEn}',
+                                  ),
+                                  backgroundColor: c.surface,
                                   behavior: SnackBarBehavior.floating,
                                 ),
                               );
                             },
                       child: Text(
-                        zone.status == 'banned' ? 'Zone banned' : 'Report: I\'m grazing here',
+                        zone.status == 'banned'
+                            ? 'Zone banned'
+                            : 'Report: I\'m grazing here',
                         style: const TextStyle(
                           fontWeight: FontWeight.w500,
                           fontSize: 14,
@@ -168,7 +167,12 @@ class _ZoneMap extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = context.watch<ThemeProvider>().isDark;
     final color = JailooColors.statusColor(zone.status);
+
+    final tileUrl = isDark
+        ? 'https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png'
+        : 'https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png';
 
     return SizedBox(
       height: 180,
@@ -176,12 +180,13 @@ class _ZoneMap extends StatelessWidget {
         options: MapOptions(
           initialCenter: zone.center,
           initialZoom: 9,
-          interactionOptions: const InteractionOptions(flags: InteractiveFlag.none),
+          interactionOptions: const InteractionOptions(
+            flags: InteractiveFlag.none,
+          ),
         ),
         children: [
           TileLayer(
-            urlTemplate:
-                'https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png',
+            urlTemplate: tileUrl,
             subdomains: const ['a', 'b', 'c', 'd'],
             userAgentPackageName: 'com.jailoo.app',
           ),
@@ -189,7 +194,7 @@ class _ZoneMap extends StatelessWidget {
             polygons: [
               Polygon(
                 points: zone.boundary,
-                color: color.withValues(alpha: 0.2),
+                color: color.withValues(alpha: isDark ? 0.18 : 0.15),
                 borderColor: color.withValues(alpha: 0.7),
                 borderStrokeWidth: 2,
                 isFilled: true,
@@ -200,8 +205,8 @@ class _ZoneMap extends StatelessWidget {
             markers: [
               Marker(
                 point: zone.center,
-                width: 10,
-                height: 10,
+                width: 8,
+                height: 8,
                 child: Container(
                   decoration: BoxDecoration(
                     color: color,
