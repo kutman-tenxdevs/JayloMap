@@ -1,6 +1,6 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:flutter_map/flutter_map.dart';
-import 'package:latlong2/latlong.dart';
+import 'package:maplibre_gl/maplibre_gl.dart';
 import 'package:provider/provider.dart';
 import '../models/zone.dart';
 import '../theme/colors.dart';
@@ -30,11 +30,7 @@ class DetailScreen extends StatelessWidget {
         ),
         title: Text(
           zone.nameEn,
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w500,
-            color: c.textPrimary,
-          ),
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: c.textPrimary),
         ),
         actions: [
           Padding(
@@ -142,7 +138,7 @@ class DetailScreen extends StatelessWidget {
                               );
                             },
                       child: Text(
-                        zone.status == 'banned' ? 'Zone banned' : 'Report: I\'m grazing here',
+                        zone.status == 'banned' ? 'Zone banned' : "Report: I'm grazing here",
                         style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
                       ),
                     ),
@@ -178,57 +174,89 @@ class _DetailRow extends StatelessWidget {
   }
 }
 
-class _ZoneMap extends StatelessWidget {
+// ---------------------------------------------------------------------------
+// Mini-map using MaplibreMap
+// ---------------------------------------------------------------------------
+
+class _ZoneMap extends StatefulWidget {
   final Zone zone;
   const _ZoneMap({required this.zone});
 
   @override
+  State<_ZoneMap> createState() => _ZoneMapState();
+}
+
+class _ZoneMapState extends State<_ZoneMap> {
+  MaplibreMapController? _ctrl;
+
+  void _onMapCreated(MaplibreMapController controller) {
+    _ctrl = controller;
+  }
+
+  Future<void> _onStyleLoaded() async {
+    final ctrl = _ctrl;
+    if (ctrl == null) return;
+
+    final zone = widget.zone;
+    final colorHex = JailooColors.statusColorHex(zone.status);
+
+    final ring = [
+      ...zone.boundary.map((p) => [p.longitude, p.latitude]),
+      [zone.boundary.first.longitude, zone.boundary.first.latitude],
+    ];
+    final geojson = jsonEncode({
+      'type': 'FeatureCollection',
+      'features': [
+        {
+          'type': 'Feature',
+          'properties': {},
+          'geometry': {'type': 'Polygon', 'coordinates': [ring]},
+        }
+      ],
+    });
+
+    await ctrl.addSource('zone', GeojsonSourceProperties(data: geojson));
+    await ctrl.addFillLayer(
+      'zone', 'zone-fill',
+      FillLayerProperties(fillColor: colorHex, fillOpacity: 0.15),
+    );
+    await ctrl.addLineLayer(
+      'zone', 'zone-border',
+      LineLayerProperties(lineColor: colorHex, lineWidth: 2.0, lineCap: 'round', lineJoin: 'round'),
+    );
+
+    await ctrl.addCircle(CircleOptions(
+      geometry: LatLng(zone.lat, zone.lng),
+      circleRadius: 5,
+      circleColor: colorHex,
+      circleStrokeColor: '#FFFFFF',
+      circleStrokeWidth: 1.5,
+    ));
+  }
+
+  @override
   Widget build(BuildContext context) {
     final isDark = context.watch<ThemeProvider>().isDark;
-    final color = JailooColors.statusColor(zone.status);
-
-    final tileUrl = isDark
-        ? 'https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png'
-        : 'https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png';
+    final styleUrl = isDark
+        ? 'https://tiles.openfreemap.org/styles/liberty'
+        : 'https://tiles.openfreemap.org/styles/bright';
 
     return SizedBox(
       height: 180,
-      child: FlutterMap(
-        options: MapOptions(
-          initialCenter: zone.center,
-          initialZoom: 9,
-          interactionOptions: const InteractionOptions(flags: InteractiveFlag.none),
+      child: MaplibreMap(
+        styleString: styleUrl,
+        initialCameraPosition: CameraPosition(
+          target: LatLng(widget.zone.lat, widget.zone.lng),
+          zoom: 9.0,
         ),
-        children: [
-          TileLayer(
-            urlTemplate: tileUrl,
-            subdomains: const ['a', 'b', 'c', 'd'],
-            userAgentPackageName: 'com.jailoo.app',
-          ),
-          PolygonLayer(
-            polygons: [
-              Polygon(
-                points: zone.boundary,
-                color: color.withValues(alpha: isDark ? 0.18 : 0.15),
-                borderColor: color.withValues(alpha: 0.7),
-                borderStrokeWidth: 2,
-                isFilled: true,
-              ),
-            ],
-          ),
-          MarkerLayer(
-            markers: [
-              Marker(
-                point: zone.center,
-                width: 8,
-                height: 8,
-                child: Container(
-                  decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-                ),
-              ),
-            ],
-          ),
-        ],
+        onMapCreated: _onMapCreated,
+        onStyleLoadedCallback: _onStyleLoaded,
+        myLocationEnabled: false,
+        compassEnabled: false,
+        rotateGesturesEnabled: false,
+        tiltGesturesEnabled: false,
+        scrollGesturesEnabled: false,
+        zoomGesturesEnabled: false,
       ),
     );
   }
