@@ -5,13 +5,16 @@ class Zone {
   final String name;
   final String nameEn;
   final String status; // 'healthy' | 'recovering' | 'banned'
-  final int healthScore; // 0-100
+  final int healthScore;
   final int maxHerd;
   final int safeDays;
   final int lastGrazedDaysAgo;
   final double lat;
   final double lng;
   final List<LatLng> boundary;
+  final double areaKm2;
+  final String elevation;
+  final String seasonNote;
 
   const Zone({
     required this.id,
@@ -25,6 +28,9 @@ class Zone {
     required this.lat,
     required this.lng,
     required this.boundary,
+    required this.areaKm2,
+    required this.elevation,
+    required this.seasonNote,
   });
 
   LatLng get center => LatLng(lat, lng);
