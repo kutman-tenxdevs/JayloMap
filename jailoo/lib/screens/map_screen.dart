@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:provider/provider.dart';
 import '../data/zones.dart';
 import '../models/zone.dart';
 import '../theme/colors.dart';
+import '../theme/theme_provider.dart';
 import 'detail_screen.dart';
 
 class MapScreen extends StatefulWidget {
@@ -16,7 +18,6 @@ class MapScreen extends StatefulWidget {
 
 class _MapScreenState extends State<MapScreen> {
   LatLng? _userLocation;
-  final _mapController = MapController();
 
   @override
   void initState() {
@@ -44,22 +45,33 @@ class _MapScreenState extends State<MapScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final c = JailooColors.of(context);
+    final isDark = context.watch<ThemeProvider>().isDark;
+
+    final tileUrl = isDark
+        ? 'https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png'
+        : 'https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png';
+
     return Scaffold(
-      backgroundColor: JailooColors.bg,
+      backgroundColor: c.bg,
       body: Stack(
         children: [
           FlutterMap(
-            mapController: _mapController,
-            options: const MapOptions(
-              initialCenter: LatLng(41.5, 75.6),
-              initialZoom: 7.5,
-              minZoom: 6,
+            options: MapOptions(
+              initialCenter: const LatLng(41.6, 75.5),
+              initialZoom: 7.8,
+              minZoom: 7,
               maxZoom: 12,
+              cameraConstraint: CameraConstraint.containCenter(
+                bounds: LatLngBounds(
+                  const LatLng(40.4, 73.5),
+                  const LatLng(42.8, 77.6),
+                ),
+              ),
             ),
             children: [
               TileLayer(
-                urlTemplate:
-                    'https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png',
+                urlTemplate: tileUrl,
                 subdomains: const ['a', 'b', 'c', 'd'],
                 userAgentPackageName: 'com.jailoo.app',
               ),
@@ -68,8 +80,8 @@ class _MapScreenState extends State<MapScreen> {
                   final color = JailooColors.statusColor(zone.status);
                   return Polygon(
                     points: zone.boundary,
-                    color: color.withValues(alpha: 0.18),
-                    borderColor: color.withValues(alpha: 0.6),
+                    color: color.withValues(alpha: isDark ? 0.15 : 0.12),
+                    borderColor: color.withValues(alpha: isDark ? 0.6 : 0.7),
                     borderStrokeWidth: 1.5,
                     isFilled: true,
                   );
@@ -81,21 +93,23 @@ class _MapScreenState extends State<MapScreen> {
                     final color = JailooColors.statusColor(zone.status);
                     return Marker(
                       point: zone.center,
-                      width: 120,
-                      height: 40,
+                      width: 100,
+                      height: 36,
                       child: GestureDetector(
                         onTap: () => _onZoneTap(zone),
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 3,
+                              ),
                               decoration: BoxDecoration(
-                                color: JailooColors.bg.withValues(alpha: 0.85),
+                                color: c.bg.withValues(alpha: 0.85),
                                 borderRadius: BorderRadius.circular(6),
                                 border: Border.all(
                                   color: color.withValues(alpha: 0.4),
-                                  width: 1,
                                 ),
                               ),
                               child: Text(
@@ -104,16 +118,15 @@ class _MapScreenState extends State<MapScreen> {
                                   fontSize: 10,
                                   fontWeight: FontWeight.w500,
                                   color: color,
-                                  letterSpacing: 0.5,
+                                  letterSpacing: 0.3,
                                 ),
-                                textAlign: TextAlign.center,
                                 overflow: TextOverflow.ellipsis,
                               ),
                             ),
                             const SizedBox(height: 2),
                             Container(
-                              width: 6,
-                              height: 6,
+                              width: 5,
+                              height: 5,
                               decoration: BoxDecoration(
                                 color: color,
                                 shape: BoxShape.circle,
@@ -127,13 +140,13 @@ class _MapScreenState extends State<MapScreen> {
                   if (_userLocation != null)
                     Marker(
                       point: _userLocation!,
-                      width: 16,
-                      height: 16,
+                      width: 14,
+                      height: 14,
                       child: Container(
                         decoration: BoxDecoration(
                           color: Colors.white,
                           shape: BoxShape.circle,
-                          border: Border.all(color: JailooColors.accent, width: 2),
+                          border: Border.all(color: c.accent, width: 2),
                         ),
                       ),
                     ),
@@ -145,78 +158,126 @@ class _MapScreenState extends State<MapScreen> {
           SafeArea(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                decoration: BoxDecoration(
-                  color: JailooColors.bg.withValues(alpha: 0.9),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: JailooColors.border),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 8,
-                      height: 8,
-                      decoration: const BoxDecoration(
-                        color: JailooColors.accent,
-                        shape: BoxShape.circle,
-                      ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
                     ),
-                    const SizedBox(width: 10),
-                    Column(
+                    decoration: BoxDecoration(
+                      color: c.bg.withValues(alpha: 0.92),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: c.border),
+                    ),
+                    child: Row(
                       mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          'Naryn Oblast',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: JailooColors.textPrimary,
+                        Container(
+                          width: 7,
+                          height: 7,
+                          decoration: BoxDecoration(
+                            color: c.accent,
+                            shape: BoxShape.circle,
                           ),
                         ),
-                        Text(
-                          '${kZones.length} pasture zones',
-                          style: const TextStyle(
-                            fontSize: 11,
-                            color: JailooColors.textMuted,
-                          ),
+                        const SizedBox(width: 8),
+                        Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Naryn Oblast',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: c.textPrimary,
+                              ),
+                            ),
+                            Text(
+                              '${kZones.length} zones',
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: c.textMuted,
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
-                  ],
-                ),
+                  ),
+                  const Spacer(),
+                  _ThemeToggle(colors: c),
+                ],
               ),
             ),
           ),
 
           Positioned(
-            bottom: 16,
+            bottom: 12,
             left: 16,
             right: 16,
-            child: _buildLegend(),
+            child: _buildLegend(c, isDark),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildLegend() {
+  Widget _buildLegend(JailooColors c, bool isDark) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
       decoration: BoxDecoration(
-        color: JailooColors.bg.withValues(alpha: 0.9),
+        color: c.bg.withValues(alpha: 0.92),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: JailooColors.border),
+        border: Border.all(color: c.border),
       ),
-      child: const Row(
+      child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
-          _LegendItem(color: JailooColors.healthy, label: 'Safe'),
-          _LegendItem(color: JailooColors.recovering, label: 'Recovering'),
-          _LegendItem(color: JailooColors.banned, label: 'Banned'),
+          _LegendItem(
+            color: JailooColors.healthy,
+            label: 'Safe',
+            textColor: c.textMuted,
+          ),
+          _LegendItem(
+            color: JailooColors.recovering,
+            label: 'Recovering',
+            textColor: c.textMuted,
+          ),
+          _LegendItem(
+            color: JailooColors.banned,
+            label: 'Banned',
+            textColor: c.textMuted,
+          ),
         ],
+      ),
+    );
+  }
+}
+
+class _ThemeToggle extends StatelessWidget {
+  final JailooColors colors;
+  const _ThemeToggle({required this.colors});
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = context.watch<ThemeProvider>().isDark;
+    return GestureDetector(
+      onTap: () => context.read<ThemeProvider>().toggle(),
+      child: Container(
+        width: 36,
+        height: 36,
+        decoration: BoxDecoration(
+          color: colors.bg.withValues(alpha: 0.92),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: colors.border),
+        ),
+        child: Icon(
+          isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
+          size: 16,
+          color: colors.textMuted,
+        ),
       ),
     );
   }
@@ -225,7 +286,12 @@ class _MapScreenState extends State<MapScreen> {
 class _LegendItem extends StatelessWidget {
   final Color color;
   final String label;
-  const _LegendItem({required this.color, required this.label});
+  final Color textColor;
+  const _LegendItem({
+    required this.color,
+    required this.label,
+    required this.textColor,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -236,18 +302,15 @@ class _LegendItem extends StatelessWidget {
           width: 10,
           height: 10,
           decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.25),
+            color: color.withValues(alpha: 0.2),
             borderRadius: BorderRadius.circular(2),
             border: Border.all(color: color, width: 1),
           ),
         ),
-        const SizedBox(width: 6),
+        const SizedBox(width: 5),
         Text(
           label,
-          style: const TextStyle(
-            fontSize: 11,
-            color: JailooColors.textMuted,
-          ),
+          style: TextStyle(fontSize: 11, color: textColor),
         ),
       ],
     );
