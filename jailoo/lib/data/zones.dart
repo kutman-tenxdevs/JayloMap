@@ -1,3 +1,4 @@
+import 'package:latlong2/latlong.dart';
 import '../models/zone.dart';
 
 const List<Zone> kZones = [
@@ -12,6 +13,17 @@ const List<Zone> kZones = [
     lastGrazedDaysAgo: 5,
     lat: 40.95,
     lng: 76.20,
+    boundary: [
+      LatLng(41.20, 75.60),
+      LatLng(41.25, 76.00),
+      LatLng(41.20, 76.50),
+      LatLng(41.10, 76.80),
+      LatLng(40.80, 76.90),
+      LatLng(40.60, 76.60),
+      LatLng(40.55, 76.10),
+      LatLng(40.65, 75.70),
+      LatLng(40.90, 75.50),
+    ],
   ),
   Zone(
     id: 2,
@@ -24,6 +36,16 @@ const List<Zone> kZones = [
     lastGrazedDaysAgo: 2,
     lat: 42.21,
     lng: 75.75,
+    boundary: [
+      LatLng(42.45, 75.35),
+      LatLng(42.50, 75.70),
+      LatLng(42.45, 76.10),
+      LatLng(42.25, 76.25),
+      LatLng(42.00, 76.15),
+      LatLng(41.95, 75.75),
+      LatLng(42.00, 75.40),
+      LatLng(42.20, 75.25),
+    ],
   ),
   Zone(
     id: 3,
@@ -36,6 +58,17 @@ const List<Zone> kZones = [
     lastGrazedDaysAgo: 11,
     lat: 41.85,
     lng: 75.12,
+    boundary: [
+      LatLng(42.10, 74.70),
+      LatLng(42.15, 75.10),
+      LatLng(42.05, 75.50),
+      LatLng(41.85, 75.55),
+      LatLng(41.60, 75.40),
+      LatLng(41.55, 75.00),
+      LatLng(41.60, 74.70),
+      LatLng(41.80, 74.55),
+      LatLng(41.95, 74.55),
+    ],
   ),
   Zone(
     id: 4,
@@ -48,6 +81,16 @@ const List<Zone> kZones = [
     lastGrazedDaysAgo: 1,
     lat: 41.43,
     lng: 75.99,
+    boundary: [
+      LatLng(41.65, 75.55),
+      LatLng(41.70, 75.90),
+      LatLng(41.65, 76.30),
+      LatLng(41.50, 76.45),
+      LatLng(41.25, 76.40),
+      LatLng(41.15, 76.00),
+      LatLng(41.20, 75.60),
+      LatLng(41.40, 75.45),
+    ],
   ),
   Zone(
     id: 5,
@@ -60,6 +103,17 @@ const List<Zone> kZones = [
     lastGrazedDaysAgo: 0,
     lat: 41.43,
     lng: 74.60,
+    boundary: [
+      LatLng(41.70, 74.20),
+      LatLng(41.75, 74.60),
+      LatLng(41.65, 74.95),
+      LatLng(41.45, 75.05),
+      LatLng(41.20, 74.95),
+      LatLng(41.10, 74.60),
+      LatLng(41.15, 74.25),
+      LatLng(41.35, 74.10),
+      LatLng(41.55, 74.10),
+    ],
   ),
   Zone(
     id: 6,
@@ -72,6 +126,17 @@ const List<Zone> kZones = [
     lastGrazedDaysAgo: 0,
     lat: 42.05,
     lng: 74.20,
+    boundary: [
+      LatLng(42.35, 73.80),
+      LatLng(42.40, 74.15),
+      LatLng(42.35, 74.55),
+      LatLng(42.15, 74.70),
+      LatLng(41.90, 74.60),
+      LatLng(41.80, 74.25),
+      LatLng(41.85, 73.85),
+      LatLng(42.05, 73.65),
+      LatLng(42.25, 73.65),
+    ],
   ),
   Zone(
     id: 7,
@@ -84,6 +149,17 @@ const List<Zone> kZones = [
     lastGrazedDaysAgo: 8,
     lat: 41.20,
     lng: 77.50,
+    boundary: [
+      LatLng(41.50, 77.00),
+      LatLng(41.55, 77.40),
+      LatLng(41.45, 77.85),
+      LatLng(41.25, 78.00),
+      LatLng(41.00, 77.90),
+      LatLng(40.90, 77.50),
+      LatLng(40.95, 77.10),
+      LatLng(41.15, 76.90),
+      LatLng(41.35, 76.90),
+    ],
   ),
   Zone(
     id: 8,
@@ -96,5 +172,16 @@ const List<Zone> kZones = [
     lastGrazedDaysAgo: 3,
     lat: 41.55,
     lng: 76.45,
+    boundary: [
+      LatLng(41.80, 76.10),
+      LatLng(41.85, 76.40),
+      LatLng(41.80, 76.75),
+      LatLng(41.60, 76.85),
+      LatLng(41.35, 76.75),
+      LatLng(41.25, 76.45),
+      LatLng(41.30, 76.15),
+      LatLng(41.50, 76.00),
+      LatLng(41.70, 76.00),
+    ],
   ),
 ];
