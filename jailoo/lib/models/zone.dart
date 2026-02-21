@@ -1,4 +1,4 @@
-import 'package:latlong2/latlong.dart';
+import 'package:maplibre_gl/maplibre_gl.dart';
 
 class Zone {
   final int id;
