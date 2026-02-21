@@ -279,19 +279,20 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   // Route
   // ---------------------------------------------------------------------------
 
-  // Builds a LineString GeoJSON from the first [count] points.
-  String _routeGeojson(List<LatLng> pts, int count) {
+  // Builds a LineString GeoJSON Map from the first [count] points.
+  // setGeoJsonSource expects Map<String, dynamic>, NOT a JSON string.
+  Map<String, dynamic> _routeGeojsonMap(List<LatLng> pts, int count) {
     final coords = pts.take(count).map((p) => [p.longitude, p.latitude]).toList();
-    return jsonEncode({
+    return {
       'type': 'FeatureCollection',
       'features': [
         {
           'type': 'Feature',
-          'properties': {},
+          'properties': <String, dynamic>{},
           'geometry': {'type': 'LineString', 'coordinates': coords},
         }
       ],
-    });
+    };
   }
 
   // Creates the route source/layers then progressively draws the line using
@@ -300,15 +301,15 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
     _routeDrawTimer?.cancel();
     _routeDrawProgress = 0;
 
-    // Seed the source with just the start point so layers can be created
-    final seed = _routeGeojson(pts, 2);
+    // Seed the source with just the first two points so layers can be created
+    final seedJson = jsonEncode(_routeGeojsonMap(pts, 2));
 
     for (final id in ['route-line', 'route-outline']) {
       try { await ctrl.removeLayer(id); } catch (_) {}
     }
     try { await ctrl.removeSource('route'); } catch (_) {}
 
-    await ctrl.addSource('route', GeojsonSourceProperties(data: seed));
+    await ctrl.addSource('route', GeojsonSourceProperties(data: seedJson));
     await ctrl.addLineLayer(
       'route', 'route-outline',
       const LineLayerProperties(
@@ -334,7 +335,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
     _routeDrawTimer = Timer.periodic(const Duration(milliseconds: 16), (t) async {
       _routeDrawProgress = min(_routeDrawProgress + step, pts.length);
       try {
-        await ctrl.setGeoJsonSource('route', _routeGeojson(pts, _routeDrawProgress));
+        await ctrl.setGeoJsonSource('route', _routeGeojsonMap(pts, _routeDrawProgress));
       } catch (_) {}
       if (_routeDrawProgress >= pts.length) t.cancel();
     });
