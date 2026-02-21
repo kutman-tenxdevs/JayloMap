@@ -10,15 +10,10 @@ dependencies:
   flutter:
     sdk: flutter
 
-  # Maps
-  flutter_map: ^6.1.0
-  latlong2: ^0.9.0
+  # Maps — MapLibre GL: real 3D pitch/bearing, vector tiles, GeoJSON layers
+  maplibre_gl: ^0.21.0
 
-  # GPS
-  geolocator: ^11.0.0
-  permission_handler: ^11.3.0
-
-  # HTTP (Claude API)
+  # HTTP
   http: ^1.2.1
 
   # State
