@@ -73,42 +73,51 @@ class DetailScreen extends StatelessWidget {
                   const SizedBox(height: 20),
                   Row(
                     children: [
-                      Expanded(
-                        child: DataCard(
-                          label: 'Health',
-                          value: '${zone.healthScore}',
-                          unit: '/100',
-                        ),
-                      ),
+                      Expanded(child: DataCard(label: 'Health', value: '${zone.healthScore}', unit: '/100')),
                       const SizedBox(width: 8),
-                      Expanded(
-                        child: DataCard(
-                          label: 'Max herd',
-                          value: '${zone.maxHerd}',
-                          unit: 'sheep',
-                        ),
-                      ),
+                      Expanded(child: DataCard(label: 'Max herd', value: '${zone.maxHerd}', unit: 'sheep')),
                     ],
                   ),
                   const SizedBox(height: 8),
                   Row(
                     children: [
-                      Expanded(
-                        child: DataCard(
-                          label: 'Last grazed',
-                          value: '${zone.lastGrazedDaysAgo}',
-                          unit: 'days ago',
-                        ),
-                      ),
+                      Expanded(child: DataCard(label: 'Last grazed', value: '${zone.lastGrazedDaysAgo}', unit: 'days ago')),
                       const SizedBox(width: 8),
-                      Expanded(
-                        child: DataCard(
-                          label: 'Safe days',
-                          value: '${zone.safeDays}',
-                          unit: 'days',
-                        ),
-                      ),
+                      Expanded(child: DataCard(label: 'Safe days', value: '${zone.safeDays}', unit: 'days')),
                     ],
+                  ),
+                  const SizedBox(height: 16),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: c.surface,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: c.border),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Details', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: c.textPrimary)),
+                        const SizedBox(height: 10),
+                        _DetailRow(label: 'Area', value: '${zone.areaKm2.toStringAsFixed(0)} km²', c: c),
+                        _DetailRow(label: 'Elevation', value: zone.elevation, c: c),
+                        const SizedBox(height: 8),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Icon(Icons.info_outline, size: 14, color: statusColor),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                zone.seasonNote,
+                                style: TextStyle(fontSize: 12, color: c.textMuted, height: 1.4),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
                   const SizedBox(height: 24),
                   SizedBox(
@@ -116,15 +125,9 @@ class DetailScreen extends StatelessWidget {
                     height: 48,
                     child: FilledButton(
                       style: FilledButton.styleFrom(
-                        backgroundColor: zone.status == 'banned'
-                            ? c.surface2
-                            : c.accent,
-                        foregroundColor: zone.status == 'banned'
-                            ? c.textMuted
-                            : Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
+                        backgroundColor: zone.status == 'banned' ? c.surface2 : c.accent,
+                        foregroundColor: zone.status == 'banned' ? c.textMuted : Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                         elevation: 0,
                       ),
                       onPressed: zone.status == 'banned'
@@ -132,22 +135,15 @@ class DetailScreen extends StatelessWidget {
                           : () {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
-                                  content: Text(
-                                    'Reported: grazing at ${zone.nameEn}',
-                                  ),
+                                  content: Text('Reported: grazing at ${zone.nameEn}'),
                                   backgroundColor: c.surface,
                                   behavior: SnackBarBehavior.floating,
                                 ),
                               );
                             },
                       child: Text(
-                        zone.status == 'banned'
-                            ? 'Zone banned'
-                            : 'Report: I\'m grazing here',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w500,
-                          fontSize: 14,
-                        ),
+                        zone.status == 'banned' ? 'Zone banned' : 'Report: I\'m grazing here',
+                        style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
                       ),
                     ),
                   ),
@@ -156,6 +152,27 @@ class DetailScreen extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _DetailRow extends StatelessWidget {
+  final String label;
+  final String value;
+  final JailooColors c;
+  const _DetailRow({required this.label, required this.value, required this.c});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: TextStyle(fontSize: 12, color: c.textMuted)),
+          Text(value, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: c.textPrimary)),
+        ],
       ),
     );
   }
@@ -180,9 +197,7 @@ class _ZoneMap extends StatelessWidget {
         options: MapOptions(
           initialCenter: zone.center,
           initialZoom: 9,
-          interactionOptions: const InteractionOptions(
-            flags: InteractiveFlag.none,
-          ),
+          interactionOptions: const InteractionOptions(flags: InteractiveFlag.none),
         ),
         children: [
           TileLayer(
@@ -208,10 +223,7 @@ class _ZoneMap extends StatelessWidget {
                 width: 8,
                 height: 8,
                 child: Container(
-                  decoration: BoxDecoration(
-                    color: color,
-                    shape: BoxShape.circle,
-                  ),
+                  decoration: BoxDecoration(color: color, shape: BoxShape.circle),
                 ),
               ),
             ],
