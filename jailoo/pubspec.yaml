@@ -1,0 +1,43 @@
+name: jailoo
+description: Smart pasture navigator for Naryn Oblast, Kyrgyzstan
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.0.0 <4.0.0"
+  flutter: ">=3.10.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Maps
+  flutter_map: ^6.1.0
+  latlong2: ^0.9.0
+
+  # GPS
+  geolocator: ^11.0.0
+  permission_handler: ^11.3.0
+
+  # HTTP (Claude API)
+  http: ^1.2.1
+
+  # State
+  provider: ^6.1.2
+
+  # Offline cache
+  shared_preferences: ^2.2.3
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+flutter:
+  uses-material-design: true
+  fonts:
+    - family: BebasNeue
+      fonts:
+        - asset: assets/fonts/BebasNeue-Regular.ttf
+    - family: DMMono
+      fonts:
+        - asset: assets/fonts/DMMono-Regular.ttf
