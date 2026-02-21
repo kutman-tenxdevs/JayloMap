@@ -20,10 +20,10 @@ class MapScreen extends StatefulWidget {
 }
 
 class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
-  static final _overviewCenter = LatLng(41.42, 75.88);
+  static const _overviewCenter = LatLng(41.42, 75.88);
   static const _overviewZoom = 9.6;
 
-  MaplibreMapController? _mapController;
+  MapLibreMapController? _mapController;
 
   // 3D state — tilt/bearing targets applied after style load
   bool _is3D = false;
@@ -39,7 +39,6 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   bool _reportPressed = false;
 
   // Annotation handles (needed to remove/replace them)
-  Circle? _userDotCircle;
   Circle? _userRingCircle;
   Circle? _destCircle;
 
@@ -69,7 +68,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   // Map lifecycle
   // ---------------------------------------------------------------------------
 
-  void _onMapCreated(MaplibreMapController controller) {
+  void _onMapCreated(MapLibreMapController controller) {
     _mapController = controller;
   }
 
@@ -134,7 +133,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
     return jsonEncode({'type': 'FeatureCollection', 'features': features});
   }
 
-  Future<void> _addZoneLayers(MaplibreMapController ctrl) async {
+  Future<void> _addZoneLayers(MapLibreMapController ctrl) async {
     final geojson = _buildZonesGeojson();
     await ctrl.addSource('zones', GeojsonSourceProperties(data: geojson));
 
@@ -172,7 +171,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
     );
   }
 
-  Future<void> _updateHighlight(MaplibreMapController ctrl, Zone? zone) async {
+  Future<void> _updateHighlight(MapLibreMapController ctrl, Zone? zone) async {
     try {
       if (zone == null) {
         await ctrl.setLayerProperties(
@@ -195,7 +194,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   // User location marker (circle + pulsing outer ring)
   // ---------------------------------------------------------------------------
 
-  Future<void> _addUserLocationMarker(MaplibreMapController ctrl) async {
+  Future<void> _addUserLocationMarker(MapLibreMapController ctrl) async {
     _userRingCircle = await ctrl.addCircle(CircleOptions(
       geometry: kUserLocation,
       circleRadius: 16,
@@ -203,7 +202,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
       circleOpacity: 0.12,
       circleStrokeWidth: 0,
     ));
-    _userDotCircle = await ctrl.addCircle(CircleOptions(
+    await ctrl.addCircle(CircleOptions(
       geometry: kUserLocation,
       circleRadius: 7,
       circleColor: '#FFFFFF',
@@ -231,7 +230,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   // Zone label symbols
   // ---------------------------------------------------------------------------
 
-  Future<void> _addZoneLabels(MaplibreMapController ctrl) async {
+  Future<void> _addZoneLabels(MapLibreMapController ctrl) async {
     for (final zone in kZones) {
       final colorHex = JailooColors.statusColorHex(zone.status);
       await ctrl.addSymbol(SymbolOptions(
@@ -251,7 +250,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   // Route
   // ---------------------------------------------------------------------------
 
-  Future<void> _addRouteToMap(MaplibreMapController ctrl, List<LatLng> pts) async {
+  Future<void> _addRouteToMap(MapLibreMapController ctrl, List<LatLng> pts) async {
     final coords = pts.map((p) => [p.longitude, p.latitude]).toList();
     final geojson = jsonEncode({
       'type': 'FeatureCollection',
@@ -292,14 +291,14 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
     );
   }
 
-  Future<void> _removeRouteFromMap(MaplibreMapController ctrl) async {
+  Future<void> _removeRouteFromMap(MapLibreMapController ctrl) async {
     for (final id in ['route-line', 'route-outline']) {
       try { await ctrl.removeLayer(id); } catch (_) {}
     }
     try { await ctrl.removeSource('route'); } catch (_) {}
   }
 
-  Future<void> _addDestinationMarker(MaplibreMapController ctrl, Zone zone) async {
+  Future<void> _addDestinationMarker(MapLibreMapController ctrl, Zone zone) async {
     if (_destCircle != null) {
       try { await ctrl.removeCircle(_destCircle!); } catch (_) {}
       _destCircle = null;
@@ -577,7 +576,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
       backgroundColor: c.bg,
       body: Stack(
         children: [
-          MaplibreMap(
+          MapLibreMap(
             styleString: _styleUrl(isDark),
             initialCameraPosition: CameraPosition(
               target: _overviewCenter,
