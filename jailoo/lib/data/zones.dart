@@ -26,7 +26,7 @@ List<LatLng> _circle(double lat, double lng, {double radiusDeg = 0.055, int poin
 
 // User's hardcoded position — on the main A-365 highway in Naryn valley.
 // In production this comes from Geolocator.getCurrentPosition().
-final kUserLocation = const LatLng(41.43, 75.99);
+const kUserLocation = LatLng(41.43, 75.99);
 
 // Zone centers are spaced so that for any pair (a, b):
 //   (Δlat / (2·r))² + (Δlng / (2·r·lngScale))² > 1
