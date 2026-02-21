@@ -90,7 +90,6 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
 
     await _addZoneLayers(ctrl);
     await _addUserLocationMarker(ctrl);
-    await _addZoneLabels(ctrl);
 
     if (_routePoints.isNotEmpty) await _addRouteToMap(ctrl, _routePoints);
     if (_activeRouteZone != null) await _addDestinationMarker(ctrl, _activeRouteZone!);
@@ -176,6 +175,30 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
       FillLayerProperties(fillColor: '#22C55E', fillOpacity: 0.28),
       filter: ['==', ['get', 'id'], -1],
     );
+
+    // Zone name labels as a SymbolLayer on the zones source.
+    // Using addSymbolLayer (not addSymbol annotations) so MapLibre uses the
+    // style's own glyph server — avoids the "Open Sans Regular" 404 error
+    // that occurs when annotation text falls back to a hardcoded font stack.
+    await ctrl.addSymbolLayer(
+      'zones',
+      'zones-labels',
+      SymbolLayerProperties(
+        textField: ['get', 'nameEn'],
+        textSize: 11.0,
+        textColor: [
+          'match', ['get', 'status'],
+          'healthy',    '#16A34A',
+          'recovering', '#D97706',
+          'banned',     '#DC2626',
+          '#71717A',
+        ],
+        textHaloColor: '#FFFFFF',
+        textHaloWidth: 1.5,
+        textAllowOverlap: false,
+        textIgnorePlacement: false,
+      ),
+    );
   }
 
   // Pulse animation for the selected zone highlight
@@ -258,22 +281,6 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   // ---------------------------------------------------------------------------
   // Zone label symbols
   // ---------------------------------------------------------------------------
-
-  Future<void> _addZoneLabels(MapLibreMapController ctrl) async {
-    for (final zone in kZones) {
-      final colorHex = JailooColors.statusColorHex(zone.status);
-      await ctrl.addSymbol(SymbolOptions(
-        geometry: LatLng(zone.lat, zone.lng),
-        textField: zone.nameEn,
-        textSize: 10.5,
-        textColor: colorHex,
-        textHaloColor: '#FFFFFF',
-        textHaloWidth: 1.5,
-        textOffset: const Offset(0, -2.2),
-        textAnchor: 'bottom',
-      ));
-    }
-  }
 
   // ---------------------------------------------------------------------------
   // Route
@@ -403,8 +410,8 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   void _toggle3D() {
     setState(() => _is3D = !_is3D);
     // Style will reload (styleString changed) → _onStyleLoaded handles camera
-    _currentPitch = _is3D ? 55.0 : 0.0;
-    _currentBearing = _is3D ? -15.0 : 0.0;
+    _currentPitch = _is3D ? 68.0 : 0.0;
+    _currentBearing = _is3D ? -20.0 : 0.0;
   }
 
   void _resetCamera() {
