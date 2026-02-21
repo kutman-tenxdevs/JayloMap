@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/colors.dart';
 
 class DataCard extends StatelessWidget {
   final String label;
@@ -11,9 +12,9 @@ class DataCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFF0A0F0A),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFF1a2a1a)),
+        color: JailooColors.surface,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: JailooColors.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -21,25 +22,33 @@ class DataCard extends StatelessWidget {
           Text(
             label,
             style: const TextStyle(
-              fontFamily: 'DMMono',
-              fontSize: 8,
-              color: Color(0xFF7A9A7A),
-              letterSpacing: 1.5,
+              fontSize: 11,
+              color: JailooColors.textMuted,
             ),
           ),
           const SizedBox(height: 6),
-          Text(
-            value,
-            style: const TextStyle(
-              fontFamily: 'BebasNeue',
-              fontSize: 28,
-              color: Color(0xFF2ECC71),
-              height: 1,
-            ),
-          ),
-          Text(
-            unit,
-            style: const TextStyle(fontSize: 10, color: Color(0xFF7A9A7A)),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: [
+              Text(
+                value,
+                style: const TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.w700,
+                  color: JailooColors.textPrimary,
+                  height: 1,
+                ),
+              ),
+              const SizedBox(width: 4),
+              Text(
+                unit,
+                style: const TextStyle(
+                  fontSize: 11,
+                  color: JailooColors.textMuted,
+                ),
+              ),
+            ],
           ),
         ],
       ),
