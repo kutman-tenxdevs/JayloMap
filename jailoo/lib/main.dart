@@ -1,18 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 import 'theme/colors.dart';
+import 'theme/theme_provider.dart';
 import 'screens/map_screen.dart';
 import 'screens/ai_screen.dart';
 
 void main() {
-  SystemChrome.setSystemUIOverlayStyle(
-    const SystemUiOverlayStyle(
-      statusBarColor: Colors.transparent,
-      statusBarIconBrightness: Brightness.light,
-      systemNavigationBarColor: JailooColors.bg,
+  WidgetsFlutterBinding.ensureInitialized();
+  runApp(
+    ChangeNotifierProvider(
+      create: (_) => ThemeProvider(),
+      child: const JailooApp(),
     ),
   );
-  runApp(const JailooApp());
 }
 
 class JailooApp extends StatelessWidget {
@@ -20,27 +21,47 @@ class JailooApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final themeProvider = context.watch<ThemeProvider>();
+
+    final lightColors = JailooColors.light;
+    final darkColors = JailooColors.dark;
+
     return MaterialApp(
       title: 'Jailoo',
       debugShowCheckedModeBanner: false,
+      themeMode: themeProvider.mode,
       theme: ThemeData(
-        brightness: Brightness.dark,
-        scaffoldBackgroundColor: JailooColors.bg,
-        colorScheme: const ColorScheme.dark(
-          primary: JailooColors.accent,
-          surface: JailooColors.surface,
+        brightness: Brightness.light,
+        scaffoldBackgroundColor: lightColors.bg,
+        colorScheme: ColorScheme.light(
+          primary: lightColors.accent,
+          surface: lightColors.surface,
         ),
         fontFamily: 'DMMono',
         useMaterial3: true,
-        dividerTheme: const DividerThemeData(
-          color: JailooColors.border,
-          thickness: 1,
-        ),
-        appBarTheme: const AppBarTheme(
-          backgroundColor: JailooColors.bg,
+        appBarTheme: AppBarTheme(
+          backgroundColor: lightColors.bg,
           elevation: 0,
           scrolledUnderElevation: 0,
           surfaceTintColor: Colors.transparent,
+          systemOverlayStyle: SystemUiOverlayStyle.dark,
+        ),
+      ),
+      darkTheme: ThemeData(
+        brightness: Brightness.dark,
+        scaffoldBackgroundColor: darkColors.bg,
+        colorScheme: ColorScheme.dark(
+          primary: darkColors.accent,
+          surface: darkColors.surface,
+        ),
+        fontFamily: 'DMMono',
+        useMaterial3: true,
+        appBarTheme: AppBarTheme(
+          backgroundColor: darkColors.bg,
+          elevation: 0,
+          scrolledUnderElevation: 0,
+          surfaceTintColor: Colors.transparent,
+          systemOverlayStyle: SystemUiOverlayStyle.light,
         ),
       ),
       home: const _AppShell(),
@@ -60,6 +81,8 @@ class _AppShellState extends State<_AppShell> {
 
   @override
   Widget build(BuildContext context) {
+    final c = JailooColors.of(context);
+
     return Scaffold(
       body: IndexedStack(
         index: _tab,
@@ -69,25 +92,25 @@ class _AppShellState extends State<_AppShell> {
         ],
       ),
       bottomNavigationBar: Container(
-        decoration: const BoxDecoration(
-          border: Border(top: BorderSide(color: JailooColors.border)),
+        decoration: BoxDecoration(
+          border: Border(top: BorderSide(color: c.border)),
         ),
         child: NavigationBar(
           selectedIndex: _tab,
           onDestinationSelected: (i) => setState(() => _tab = i),
-          backgroundColor: JailooColors.bg,
-          indicatorColor: JailooColors.accent.withValues(alpha: 0.12),
+          backgroundColor: c.bg,
+          indicatorColor: c.accent.withValues(alpha: 0.12),
           height: 64,
           labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-          destinations: const [
+          destinations: [
             NavigationDestination(
-              icon: Icon(Icons.map_outlined, color: JailooColors.textMuted, size: 20),
-              selectedIcon: Icon(Icons.map, color: JailooColors.accent, size: 20),
+              icon: Icon(Icons.map_outlined, color: c.textMuted, size: 20),
+              selectedIcon: Icon(Icons.map, color: c.accent, size: 20),
               label: 'Map',
             ),
             NavigationDestination(
-              icon: Icon(Icons.auto_awesome_outlined, color: JailooColors.textMuted, size: 20),
-              selectedIcon: Icon(Icons.auto_awesome, color: JailooColors.accent, size: 20),
+              icon: Icon(Icons.auto_awesome_outlined, color: c.textMuted, size: 20),
+              selectedIcon: Icon(Icons.auto_awesome, color: c.accent, size: 20),
               label: 'AI',
             ),
           ],
