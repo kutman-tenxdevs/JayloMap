@@ -1,9 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'theme/colors.dart';
 import 'screens/map_screen.dart';
 import 'screens/ai_screen.dart';
 
 void main() {
+  SystemChrome.setSystemUIOverlayStyle(
+    const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.light,
+      systemNavigationBarColor: JailooColors.bg,
+    ),
+  );
   runApp(const JailooApp());
 }
 
@@ -16,59 +24,74 @@ class JailooApp extends StatelessWidget {
       title: 'Jailoo',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        fontFamily: 'DMMono',
+        brightness: Brightness.dark,
         scaffoldBackgroundColor: JailooColors.bg,
         colorScheme: const ColorScheme.dark(
-          primary: JailooColors.healthy,
+          primary: JailooColors.accent,
           surface: JailooColors.surface,
         ),
+        fontFamily: 'DMMono',
+        useMaterial3: true,
+        dividerTheme: const DividerThemeData(
+          color: JailooColors.border,
+          thickness: 1,
+        ),
+        appBarTheme: const AppBarTheme(
+          backgroundColor: JailooColors.bg,
+          elevation: 0,
+          scrolledUnderElevation: 0,
+          surfaceTintColor: Colors.transparent,
+        ),
       ),
-      home: const _Shell(),
+      home: const _AppShell(),
     );
   }
 }
 
-class _Shell extends StatefulWidget {
-  const _Shell();
+class _AppShell extends StatefulWidget {
+  const _AppShell();
 
   @override
-  State<_Shell> createState() => _ShellState();
+  State<_AppShell> createState() => _AppShellState();
 }
 
-class _ShellState extends State<_Shell> {
-  int _index = 0;
+class _AppShellState extends State<_AppShell> {
+  int _tab = 0;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: JailooColors.surface,
       body: IndexedStack(
-        index: _index,
+        index: _tab,
         children: const [
           MapScreen(),
           AiScreen(),
         ],
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _index,
-        onTap: (i) => setState(() => _index = i),
-        backgroundColor: const Color(0xFF111811),
-        selectedItemColor: const Color(0xFF2ECC71),
-        unselectedItemColor: const Color(0xFF7A9A7A),
-        selectedFontSize: 11,
-        unselectedFontSize: 11,
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.map_outlined),
-            activeIcon: Icon(Icons.map),
-            label: 'Карта',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.chat_bubble_outline),
-            activeIcon: Icon(Icons.chat_bubble),
-            label: 'AI',
-          ),
-        ],
+      bottomNavigationBar: Container(
+        decoration: const BoxDecoration(
+          border: Border(top: BorderSide(color: JailooColors.border)),
+        ),
+        child: NavigationBar(
+          selectedIndex: _tab,
+          onDestinationSelected: (i) => setState(() => _tab = i),
+          backgroundColor: JailooColors.bg,
+          indicatorColor: JailooColors.accent.withValues(alpha: 0.12),
+          height: 64,
+          labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+          destinations: const [
+            NavigationDestination(
+              icon: Icon(Icons.map_outlined, color: JailooColors.textMuted, size: 20),
+              selectedIcon: Icon(Icons.map, color: JailooColors.accent, size: 20),
+              label: 'Map',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.auto_awesome_outlined, color: JailooColors.textMuted, size: 20),
+              selectedIcon: Icon(Icons.auto_awesome, color: JailooColors.accent, size: 20),
+              label: 'AI',
+            ),
+          ],
+        ),
       ),
     );
   }
