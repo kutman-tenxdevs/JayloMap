@@ -58,22 +58,24 @@ class _AiScreenState extends State<AiScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final c = JailooColors.of(context);
+
     return Scaffold(
-      backgroundColor: JailooColors.bg,
+      backgroundColor: c.bg,
       appBar: AppBar(
-        backgroundColor: JailooColors.bg,
+        backgroundColor: c.bg,
         elevation: 0,
         scrolledUnderElevation: 0,
-        title: const Row(
+        title: Row(
           children: [
-            Icon(Icons.auto_awesome, size: 16, color: JailooColors.accent),
-            SizedBox(width: 8),
+            Icon(Icons.auto_awesome, size: 16, color: c.accent),
+            const SizedBox(width: 8),
             Text(
               'AI Assistant',
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w500,
-                color: JailooColors.textPrimary,
+                color: c.textPrimary,
               ),
             ),
           ],
@@ -81,17 +83,19 @@ class _AiScreenState extends State<AiScreen> {
       ),
       body: Column(
         children: [
-          const Divider(height: 1, color: JailooColors.border),
+          Divider(height: 1, color: c.border),
           Expanded(
-            child: _messages.isEmpty ? _buildEmptyState() : _buildMessages(),
+            child: _messages.isEmpty
+                ? _buildEmptyState(c)
+                : _buildMessages(c),
           ),
-          _buildInput(),
+          _buildInput(c),
         ],
       ),
     );
   }
 
-  Widget _buildEmptyState() {
+  Widget _buildEmptyState(JailooColors c) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
@@ -102,32 +106,29 @@ class _AiScreenState extends State<AiScreen> {
               width: 48,
               height: 48,
               decoration: BoxDecoration(
-                color: JailooColors.surface,
+                color: c.surface,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: JailooColors.border),
+                border: Border.all(color: c.border),
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.landscape_outlined,
-                color: JailooColors.textMuted,
+                color: c.textMuted,
                 size: 24,
               ),
             ),
             const SizedBox(height: 16),
-            const Text(
+            Text(
               'Ask about pastures',
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w500,
-                color: JailooColors.textPrimary,
+                color: c.textPrimary,
               ),
             ),
             const SizedBox(height: 6),
-            const Text(
+            Text(
               'e.g. "I have 60 sheep, where should I go?"',
-              style: TextStyle(
-                fontSize: 13,
-                color: JailooColors.textMuted,
-              ),
+              style: TextStyle(fontSize: 13, color: c.textMuted),
               textAlign: TextAlign.center,
             ),
           ],
@@ -136,49 +137,53 @@ class _AiScreenState extends State<AiScreen> {
     );
   }
 
-  Widget _buildMessages() {
+  Widget _buildMessages(JailooColors c) {
     return ListView.builder(
       controller: _scroll,
       padding: const EdgeInsets.all(16),
       itemCount: _messages.length + (_loading ? 1 : 0),
       itemBuilder: (context, index) {
-        if (index == _messages.length) return const _LoadingBubble();
+        if (index == _messages.length) return _LoadingBubble(colors: c);
         final msg = _messages[index];
-        return _Bubble(role: msg['role']!, text: msg['text']!);
+        return _Bubble(
+          role: msg['role']!,
+          text: msg['text']!,
+          colors: c,
+        );
       },
     );
   }
 
-  Widget _buildInput() {
+  Widget _buildInput(JailooColors c) {
     return Container(
       padding: EdgeInsets.fromLTRB(
         16, 12, 16,
         MediaQuery.of(context).padding.bottom + 12,
       ),
-      decoration: const BoxDecoration(
-        color: JailooColors.bg,
-        border: Border(top: BorderSide(color: JailooColors.border)),
+      decoration: BoxDecoration(
+        color: c.bg,
+        border: Border(top: BorderSide(color: c.border)),
       ),
       child: Row(
         children: [
           Expanded(
             child: Container(
               decoration: BoxDecoration(
-                color: JailooColors.surface,
+                color: c.surface,
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: JailooColors.border),
+                border: Border.all(color: c.border),
               ),
               child: TextField(
                 controller: _controller,
-                style: const TextStyle(
-                  color: JailooColors.textPrimary,
-                  fontSize: 14,
-                ),
-                decoration: const InputDecoration(
+                style: TextStyle(color: c.textPrimary, fontSize: 14),
+                decoration: InputDecoration(
                   hintText: 'Ask a question...',
-                  hintStyle: TextStyle(color: JailooColors.textMuted, fontSize: 14),
+                  hintStyle: TextStyle(color: c.textMuted, fontSize: 14),
                   border: InputBorder.none,
-                  contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 12,
+                  ),
                 ),
                 onSubmitted: (_) => _send(),
               ),
@@ -191,12 +196,16 @@ class _AiScreenState extends State<AiScreen> {
             child: IconButton(
               onPressed: _send,
               style: IconButton.styleFrom(
-                backgroundColor: JailooColors.accent,
+                backgroundColor: c.accent,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),
                 ),
               ),
-              icon: const Icon(Icons.arrow_upward, color: JailooColors.bg, size: 18),
+              icon: const Icon(
+                Icons.arrow_upward,
+                color: Colors.white,
+                size: 18,
+              ),
             ),
           ),
         ],
@@ -208,7 +217,12 @@ class _AiScreenState extends State<AiScreen> {
 class _Bubble extends StatelessWidget {
   final String role;
   final String text;
-  const _Bubble({required this.role, required this.text});
+  final JailooColors colors;
+  const _Bubble({
+    required this.role,
+    required this.text,
+    required this.colors,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -222,15 +236,15 @@ class _Bubble extends StatelessWidget {
           maxWidth: MediaQuery.of(context).size.width * 0.78,
         ),
         decoration: BoxDecoration(
-          color: isUser ? JailooColors.accent : JailooColors.surface,
+          color: isUser ? colors.accent : colors.surface,
           borderRadius: BorderRadius.circular(8),
-          border: isUser ? null : Border.all(color: JailooColors.border),
+          border: isUser ? null : Border.all(color: colors.border),
         ),
         child: Text(
           text,
           style: TextStyle(
             fontSize: 14,
-            color: isUser ? JailooColors.bg : JailooColors.textPrimary,
+            color: isUser ? Colors.white : colors.textPrimary,
             height: 1.5,
           ),
         ),
@@ -240,7 +254,8 @@ class _Bubble extends StatelessWidget {
 }
 
 class _LoadingBubble extends StatelessWidget {
-  const _LoadingBubble();
+  final JailooColors colors;
+  const _LoadingBubble({required this.colors});
 
   @override
   Widget build(BuildContext context) {
@@ -250,18 +265,18 @@ class _LoadingBubble extends StatelessWidget {
         margin: const EdgeInsets.only(bottom: 8),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(
-          color: JailooColors.surface,
+          color: colors.surface,
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: JailooColors.border),
+          border: Border.all(color: colors.border),
         ),
-        child: const SizedBox(
+        child: SizedBox(
           width: 24,
           height: 16,
           child: Center(
             child: Text(
               '...',
               style: TextStyle(
-                color: JailooColors.textMuted,
+                color: colors.textMuted,
                 fontSize: 16,
                 letterSpacing: 3,
               ),
