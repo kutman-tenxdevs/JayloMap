@@ -1,21 +1,28 @@
 import 'package:flutter/material.dart';
 
 class JailooColors {
-  // Status
-  static const healthy    = Color(0xFF2ECC71);
-  static const recovering = Color(0xFFF4D03F);
-  static const banned     = Color(0xFFE74C3C);
+  static const healthy    = Color(0xFF22C55E);
+  static const recovering = Color(0xFFFACC15);
+  static const banned     = Color(0xFFEF4444);
 
-  // Background layers
-  static const bg         = Color(0xFF0A0F0A);  // deepest bg
-  static const surface    = Color(0xFF111811);  // card/screen bg
-  static const surface2   = Color(0xFF172017);  // raised elements
+  static const bg         = Color(0xFF09090B);
+  static const surface    = Color(0xFF18181B);
+  static const surface2   = Color(0xFF27272A);
 
-  // Text
-  static const textPrimary = Color(0xFFE8F5E8);
-  static const textMuted   = Color(0xFF7A9A7A);
+  static const textPrimary = Color(0xFFFAFAFA);
+  static const textMuted   = Color(0xFFA1A1AA);
 
-  // Borders
-  static const border      = Color(0xFF1a2a1a);
-  static const borderGreen = Color(0xFF2a3a2a);
+  static const border      = Color(0xFF27272A);
+  static const borderLight = Color(0xFF3F3F46);
+
+  static const accent      = Color(0xFF22C55E);
+
+  static Color statusColor(String status) {
+    switch (status) {
+      case 'healthy':    return healthy;
+      case 'recovering': return recovering;
+      case 'banned':     return banned;
+      default:           return textMuted;
+    }
+  }
 }

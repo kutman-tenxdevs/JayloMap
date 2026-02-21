@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import '../models/zone.dart';
+import '../theme/colors.dart';
 import '../widgets/health_bar.dart';
 import '../widgets/status_badge.dart';
 import '../widgets/data_card.dart';
@@ -12,95 +13,122 @@ class DetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final statusColor = JailooColors.statusColor(zone.status);
+
     return Scaffold(
-      backgroundColor: const Color(0xFF111811),
+      backgroundColor: JailooColors.bg,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF111811),
+        backgroundColor: JailooColors.bg,
         elevation: 0,
+        scrolledUnderElevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Color(0xFF2ECC71), size: 18),
+          icon: const Icon(Icons.arrow_back, color: JailooColors.textMuted, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          zone.nameEn.toUpperCase(),
+          zone.nameEn,
           style: const TextStyle(
-            fontFamily: 'BebasNeue',
-            fontSize: 18,
-            color: Color(0xFF7A9A7A),
-            letterSpacing: 3,
+            fontSize: 16,
+            fontWeight: FontWeight.w500,
+            color: JailooColors.textPrimary,
           ),
         ),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 16),
+            child: StatusBadge(status: zone.status),
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Mini map
-            _MiniMap(zone: zone),
+            const Divider(height: 1, color: JailooColors.border),
+
+            _ZoneMap(zone: zone),
 
             Padding(
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Zone name
                   Text(
                     zone.name,
                     style: const TextStyle(
-                      fontFamily: 'BebasNeue',
-                      fontSize: 36,
-                      color: Color(0xFFE8F5E8),
-                      letterSpacing: 2,
-                      height: 1,
+                      fontSize: 28,
+                      fontWeight: FontWeight.w700,
+                      color: JailooColors.textPrimary,
+                      height: 1.1,
                     ),
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 4),
+                  Text(
+                    '${zone.healthScore}/100 health',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: statusColor,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
 
-                  StatusBadge(status: zone.status),
+                  HealthBar(score: zone.healthScore),
                   const SizedBox(height: 20),
 
-                  // Data cards grid
                   Row(
                     children: [
-                      Expanded(child: DataCard(label: 'ЗДОРОВЬЕ', value: '${zone.healthScore}', unit: '/100')),
-                      const SizedBox(width: 10),
-                      Expanded(child: DataCard(label: 'МАКС СТАДО', value: '${zone.maxHerd}', unit: 'овец')),
+                      Expanded(
+                        child: DataCard(
+                          label: 'Health',
+                          value: '${zone.healthScore}',
+                          unit: '/100',
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: DataCard(
+                          label: 'Max herd',
+                          value: '${zone.maxHerd}',
+                          unit: 'sheep',
+                        ),
+                      ),
                     ],
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 8),
                   Row(
                     children: [
-                      Expanded(child: DataCard(label: 'ПОСЛ. ВЫПАС', value: '${zone.lastGrazedDaysAgo}', unit: 'дней назад')),
-                      const SizedBox(width: 10),
-                      Expanded(child: DataCard(label: 'БЕЗОП. ДНЕЙ', value: '${zone.safeDays}', unit: 'дней')),
+                      Expanded(
+                        child: DataCard(
+                          label: 'Last grazed',
+                          value: '${zone.lastGrazedDaysAgo}',
+                          unit: 'days ago',
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: DataCard(
+                          label: 'Safe days',
+                          value: '${zone.safeDays}',
+                          unit: 'days',
+                        ),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 24),
 
-                  // Health bar
-                  const Text(
-                    'СОСТОЯНИЕ ПАСТБИЩА',
-                    style: TextStyle(
-                      fontFamily: 'DMMono',
-                      fontSize: 10,
-                      color: Color(0xFF7A9A7A),
-                      letterSpacing: 2,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  HealthBar(score: zone.healthScore),
-                  const SizedBox(height: 28),
-
-                  // Report button
                   SizedBox(
                     width: double.infinity,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF2ECC71),
-                        foregroundColor: const Color(0xFF0A0F0A),
-                        padding: const EdgeInsets.symmetric(vertical: 16),
+                    height: 48,
+                    child: FilledButton(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: zone.status == 'banned'
+                            ? JailooColors.surface2
+                            : JailooColors.accent,
+                        foregroundColor: zone.status == 'banned'
+                            ? JailooColors.textMuted
+                            : JailooColors.bg,
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(8),
                         ),
                         elevation: 0,
                       ),
@@ -109,17 +137,17 @@ class DetailScreen extends StatelessWidget {
                           : () {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
-                                  content: Text('Зарегистрировано: ${zone.name}'),
-                                  backgroundColor: const Color(0xFF1a2a1a),
+                                  content: Text('Reported: grazing at ${zone.nameEn}'),
+                                  backgroundColor: JailooColors.surface,
+                                  behavior: SnackBarBehavior.floating,
                                 ),
                               );
                             },
-                      child: const Text(
-                        '✓  Сообщить: я здесь пасу',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w600,
+                      child: Text(
+                        zone.status == 'banned' ? 'Zone banned' : 'Report: I\'m grazing here',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w500,
                           fontSize: 14,
-                          letterSpacing: 0.5,
                         ),
                       ),
                     ),
@@ -134,18 +162,20 @@ class DetailScreen extends StatelessWidget {
   }
 }
 
-class _MiniMap extends StatelessWidget {
+class _ZoneMap extends StatelessWidget {
   final Zone zone;
-  const _MiniMap({required this.zone});
+  const _ZoneMap({required this.zone});
 
   @override
   Widget build(BuildContext context) {
+    final color = JailooColors.statusColor(zone.status);
+
     return SizedBox(
-      height: 160,
+      height: 180,
       child: FlutterMap(
         options: MapOptions(
-          initialCenter: LatLng(zone.lat, zone.lng),
-          initialZoom: 10,
+          initialCenter: zone.center,
+          initialZoom: 9,
           interactionOptions: const InteractionOptions(flags: InteractiveFlag.none),
         ),
         children: [
@@ -155,17 +185,27 @@ class _MiniMap extends StatelessWidget {
             subdomains: const ['a', 'b', 'c', 'd'],
             userAgentPackageName: 'com.jailoo.app',
           ),
+          PolygonLayer(
+            polygons: [
+              Polygon(
+                points: zone.boundary,
+                color: color.withValues(alpha: 0.2),
+                borderColor: color.withValues(alpha: 0.7),
+                borderStrokeWidth: 2,
+                isFilled: true,
+              ),
+            ],
+          ),
           MarkerLayer(
             markers: [
               Marker(
-                point: LatLng(zone.lat, zone.lng),
-                width: 24,
-                height: 24,
+                point: zone.center,
+                width: 10,
+                height: 10,
                 child: Container(
                   decoration: BoxDecoration(
+                    color: color,
                     shape: BoxShape.circle,
-                    color: _statusColor(zone.status),
-                    boxShadow: [BoxShadow(color: _statusColor(zone.status).withValues(alpha: 0.7), blurRadius: 12)],
                   ),
                 ),
               ),
@@ -174,14 +214,5 @@ class _MiniMap extends StatelessWidget {
         ],
       ),
     );
-  }
-
-  Color _statusColor(String status) {
-    switch (status) {
-      case 'healthy':    return const Color(0xFF2ECC71);
-      case 'recovering': return const Color(0xFFF4D03F);
-      case 'banned':     return const Color(0xFFE74C3C);
-      default:           return Colors.grey;
-    }
   }
 }
