@@ -25,8 +25,8 @@ class ZoneMarker extends StatelessWidget {
           height: 40,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: _color.withOpacity(0.15),
-            border: Border.all(color: _color.withOpacity(0.4), width: 1),
+            color: _color.withValues(alpha: 0.15),
+            border: Border.all(color: _color.withValues(alpha: 0.4), width: 1),
           ),
         ),
         // Core dot
@@ -36,7 +36,7 @@ class ZoneMarker extends StatelessWidget {
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             color: _color,
-            boxShadow: [BoxShadow(color: _color.withOpacity(0.6), blurRadius: 8, spreadRadius: 1)],
+            boxShadow: [BoxShadow(color: _color.withValues(alpha: 0.6), blurRadius: 8, spreadRadius: 1)],
           ),
         ),
       ],
