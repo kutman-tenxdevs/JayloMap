@@ -1,25 +1,40 @@
 import 'package:flutter/material.dart';
+import '../theme/colors.dart';
 
 class HealthBar extends StatelessWidget {
-  final int score; // 0–100
+  final int score;
   const HealthBar({super.key, required this.score});
 
   Color get _color {
-    if (score >= 65) return const Color(0xFF2ECC71);
-    if (score >= 35) return const Color(0xFFF4D03F);
-    return const Color(0xFFE74C3C);
+    if (score >= 65) return JailooColors.healthy;
+    if (score >= 35) return JailooColors.recovering;
+    return JailooColors.banned;
   }
 
   @override
   Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(4),
-      child: LinearProgressIndicator(
-        value: score / 100,
-        minHeight: 8,
-        backgroundColor: const Color(0xFF1a2a1a),
-        valueColor: AlwaysStoppedAnimation<Color>(_color),
-      ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(4),
+          child: LinearProgressIndicator(
+            value: score / 100,
+            minHeight: 6,
+            backgroundColor: JailooColors.surface2,
+            valueColor: AlwaysStoppedAnimation<Color>(_color),
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          '$score%',
+          style: TextStyle(
+            fontSize: 11,
+            color: _color,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ],
     );
   }
 }
