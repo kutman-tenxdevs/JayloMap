@@ -13,6 +13,7 @@ class HealthBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = JailooColors.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
@@ -21,7 +22,7 @@ class HealthBar extends StatelessWidget {
           child: LinearProgressIndicator(
             value: score / 100,
             minHeight: 6,
-            backgroundColor: JailooColors.surface2,
+            backgroundColor: c.surface2,
             valueColor: AlwaysStoppedAnimation<Color>(_color),
           ),
         ),
