@@ -21,11 +21,20 @@ class MapScreen extends StatefulWidget {
 }
 
 class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
-  static const _overviewCenter = LatLng(41.46, 75.72);
-  static const _overviewZoom = 10.5;
+  static const _overviewCenter = LatLng(41.42, 75.88);
+  static const _overviewZoom = 9.6;
 
   final _mapController = MapController();
+
+  // Fly animation
   AnimationController? _flyController;
+
+  // Route animation — draws the line progressively from user to destination
+  AnimationController? _routeAnimController;
+  CurvedAnimation? _routeCurve;
+
+  // Pulsing ring on user location dot
+  late AnimationController _pulseController;
 
   // Route state
   List<LatLng> _routePoints = [];
@@ -37,17 +46,27 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   // 3D terrain toggle
   bool _is3D = false;
 
-  // Flag to prevent zooming back to overview after report tap
   bool _reportPressed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _pulseController = AnimationController(
+      duration: const Duration(milliseconds: 1600),
+      vsync: this,
+    )..repeat(reverse: true);
+  }
 
   @override
   void dispose() {
     _flyController?.dispose();
+    _routeAnimController?.dispose();
+    _pulseController.dispose();
     super.dispose();
   }
 
   // ---------------------------------------------------------------------------
-  // Camera
+  // Camera fly animation
   // ---------------------------------------------------------------------------
 
   void _animateCamera(LatLng target, double zoom) {
@@ -59,13 +78,13 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
     final zoomTween = Tween(begin: cam.zoom, end: zoom);
 
     _flyController = AnimationController(
-      duration: const Duration(milliseconds: 600),
+      duration: const Duration(milliseconds: 700),
       vsync: this,
     );
 
     final curved = CurvedAnimation(
       parent: _flyController!,
-      curve: Curves.easeInOut,
+      curve: Curves.easeInOutCubic,
     );
 
     _flyController!.addListener(() {
@@ -83,7 +102,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   // ---------------------------------------------------------------------------
 
   void _selectZone(Zone zone) {
-    _animateCamera(zone.center, 12.0);
+    _animateCamera(zone.center, 12.5);
     _reportPressed = false;
 
     showModalBottomSheet(
@@ -139,10 +158,11 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
       _activeRouteZone = null;
     });
 
-    // Zoom to show both user location and destination
+    // Fly to frame both user and destination
     final midLat = (kUserLocation.latitude + zone.center.latitude) / 2;
     final midLng = (kUserLocation.longitude + zone.center.longitude) / 2;
-    _animateCamera(LatLng(midLat, midLng), 10.5);
+    // Offset center slightly south so bottom sheet doesn't cover the route
+    _animateCamera(LatLng(midLat - 0.04, midLng), 10.2);
 
     try {
       final url = Uri.parse(
@@ -163,34 +183,69 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
           final distance = (routes[0]['distance'] as num).toInt();
 
           if (mounted) {
-            setState(() {
-              _routePoints = coords
+            _setRoute(
+              zone: zone,
+              points: coords
                   .map((c) => LatLng(
                         (c[1] as num).toDouble(),
                         (c[0] as num).toDouble(),
                       ))
-                  .toList();
-              _routeDuration = _formatDuration(duration);
-              _routeDistance = _formatDistance(distance);
-              _activeRouteZone = zone;
-              _fetchingRoute = false;
-            });
+                  .toList(),
+              duration: _fmt(duration),
+              distance: _fmtM(distance),
+            );
           }
           return;
         }
       }
     } catch (_) {}
 
-    // Fallback: straight line with haversine distance
+    // Fallback: straight line from user dot to zone center
     if (mounted) {
-      setState(() {
-        _routePoints = [kUserLocation, zone.center];
-        _routeDuration = '~${_formatDuration((_haversineM(kUserLocation, zone.center) / 4).round())}';
-        _routeDistance = _formatDistance(_haversineM(kUserLocation, zone.center).round());
-        _activeRouteZone = zone;
-        _fetchingRoute = false;
+      final dist = _haversineM(kUserLocation, zone.center);
+      // Generate intermediate points along a straight line for smoother animation
+      const steps = 30;
+      final pts = List.generate(steps + 1, (i) {
+        final t = i / steps;
+        return LatLng(
+          kUserLocation.latitude + t * (zone.center.latitude - kUserLocation.latitude),
+          kUserLocation.longitude + t * (zone.center.longitude - kUserLocation.longitude),
+        );
       });
+      _setRoute(
+        zone: zone,
+        points: pts,
+        duration: '~${_fmt((dist / 5000 * 3600).round())}',
+        distance: _fmtM(dist.round()),
+      );
     }
+  }
+
+  void _setRoute({
+    required Zone zone,
+    required List<LatLng> points,
+    required String duration,
+    required String distance,
+  }) {
+    _routeAnimController?.dispose();
+    _routeAnimController = AnimationController(
+      duration: const Duration(milliseconds: 1400),
+      vsync: this,
+    );
+    _routeCurve = CurvedAnimation(
+      parent: _routeAnimController!,
+      curve: Curves.easeInOut,
+    );
+
+    setState(() {
+      _routePoints = points;
+      _activeRouteZone = zone;
+      _routeDuration = duration;
+      _routeDistance = distance;
+      _fetchingRoute = false;
+    });
+
+    _routeAnimController!.forward();
   }
 
   void _clearRoute() {
@@ -199,18 +254,21 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
       _activeRouteZone = null;
       _routeDuration = '';
       _routeDistance = '';
+      _fetchingRoute = false;
     });
+    _routeAnimController?.dispose();
+    _routeAnimController = null;
     _animateCamera(_overviewCenter, _overviewZoom);
   }
 
-  String _formatDuration(int seconds) {
+  String _fmt(int seconds) {
     final mins = (seconds / 60).round();
     if (mins < 60) return '$mins min';
     return '${mins ~/ 60}h ${mins % 60}m';
   }
 
-  String _formatDistance(int meters) {
-    if (meters < 1000) return '$meters m';
+  String _fmtM(int meters) {
+    if (meters < 1000) return '${meters}m';
     return '${(meters / 1000).toStringAsFixed(1)} km';
   }
 
@@ -226,18 +284,19 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   }
 
   // ---------------------------------------------------------------------------
-  // Tile URL logic
+  // Tile URL
   // ---------------------------------------------------------------------------
 
   String _tileUrl(bool isDark, bool is3D) {
     if (is3D) {
-      // OpenTopoMap: topographic terrain, contours, elevation — great for herders
+      // OpenTopoMap — contours, elevation, peaks, glaciers, rivers.
+      // Equivalent to OpenFreeMap "liberty" style for terrain context.
       return 'https://tile.opentopomap.org/{z}/{x}/{y}.png';
     }
     if (isDark) {
       return 'https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png';
     }
-    // Standard OSM — colorful, shows roads, rivers, peaks
+    // OSM standard tile — same data source as OpenFreeMap "bright" style
     return 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
   }
 
@@ -260,13 +319,13 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
             options: MapOptions(
               initialCenter: _overviewCenter,
               initialZoom: _overviewZoom,
-              minZoom: 9.5,
+              minZoom: 8.5,
               maxZoom: 15,
               onTap: _onMapTap,
               cameraConstraint: CameraConstraint.containCenter(
                 bounds: LatLngBounds(
-                  const LatLng(41.15, 75.10),
-                  const LatLng(41.75, 76.25),
+                  const LatLng(41.05, 75.25),
+                  const LatLng(41.80, 76.55),
                 ),
               ),
             ),
@@ -278,26 +337,33 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                 maxZoom: 17,
               ),
 
-              // Route polyline (below polygons so zones render on top)
-              if (hasRoute)
-                PolylineLayer(
-                  polylines: [
-                    // Outline for contrast
-                    Polyline(
-                      points: _routePoints,
-                      color: Colors.white.withValues(alpha: 0.6),
-                      strokeWidth: 6,
-                      strokeCap: StrokeCap.round,
-                      strokeJoin: StrokeJoin.round,
-                    ),
-                    Polyline(
-                      points: _routePoints,
-                      color: c.accent,
-                      strokeWidth: 4,
-                      strokeCap: StrokeCap.round,
-                      strokeJoin: StrokeJoin.round,
-                    ),
-                  ],
+              // Route polyline — animated draw from user dot to destination
+              if (hasRoute && _routeAnimController != null)
+                AnimatedBuilder(
+                  animation: _routeAnimController!,
+                  builder: (_, __) {
+                    final progress = _routeCurve?.value ?? 1.0;
+                    final count = max(2, (_routePoints.length * progress).round());
+                    final pts = _routePoints.sublist(0, count);
+                    return PolylineLayer(
+                      polylines: [
+                        Polyline(
+                          points: pts,
+                          color: Colors.white.withValues(alpha: 0.55),
+                          strokeWidth: 7,
+                          strokeCap: StrokeCap.round,
+                          strokeJoin: StrokeJoin.round,
+                        ),
+                        Polyline(
+                          points: pts,
+                          color: c.accent,
+                          strokeWidth: 4.5,
+                          strokeCap: StrokeCap.round,
+                          strokeJoin: StrokeJoin.round,
+                        ),
+                      ],
+                    );
+                  },
                 ),
 
               // Zone fills: healthy → recovering → banned (z-order)
@@ -309,10 +375,10 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                     points: zone.boundary,
                     color: color.withValues(
                       alpha: isActive
-                          ? (isDark ? 0.30 : 0.22)
+                          ? (isDark ? 0.30 : 0.24)
                           : (isDark ? 0.16 : 0.12),
                     ),
-                    borderColor: color.withValues(alpha: isDark ? 0.6 : 0.7),
+                    borderColor: color.withValues(alpha: isDark ? 0.60 : 0.70),
                     borderStrokeWidth: isActive ? 2.5 : 1.5,
                     isFilled: true,
                   );
@@ -321,11 +387,12 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
 
               MarkerLayer(
                 markers: [
+                  // Zone label markers
                   ...kZones.map((zone) {
                     final color = JailooColors.statusColor(zone.status);
                     return Marker(
                       point: zone.center,
-                      width: 100,
+                      width: 110,
                       height: 36,
                       child: GestureDetector(
                         onTap: () => _selectZone(zone),
@@ -370,56 +437,100 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                     );
                   }),
 
-                  // Destination marker when routing
+                  // Destination marker — animates in with elastic scale
                   if (hasRoute && _activeRouteZone != null)
                     Marker(
                       point: _activeRouteZone!.center,
-                      width: 24,
-                      height: 24,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: c.accent,
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white, width: 2),
-                          boxShadow: [
-                            BoxShadow(
-                              color: c.accent.withValues(alpha: 0.5),
-                              blurRadius: 10,
-                              spreadRadius: 2,
+                      width: 32,
+                      height: 32,
+                      child: AnimatedBuilder(
+                        animation: _routeAnimController!,
+                        builder: (_, __) {
+                          final scale = Curves.elasticOut
+                              .transform((_routeCurve?.value ?? 1.0).clamp(0.0, 1.0));
+                          return Transform.scale(
+                            scale: scale,
+                            child: Container(
+                              width: 26,
+                              height: 26,
+                              decoration: BoxDecoration(
+                                color: c.accent,
+                                shape: BoxShape.circle,
+                                border: Border.all(color: Colors.white, width: 2.5),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: c.accent.withValues(alpha: 0.5),
+                                    blurRadius: 12,
+                                    spreadRadius: 3,
+                                  ),
+                                ],
+                              ),
+                              child: const Icon(
+                                Icons.flag,
+                                color: Colors.white,
+                                size: 13,
+                              ),
                             ),
-                          ],
-                        ),
+                          );
+                        },
                       ),
                     ),
 
-                  // User location dot
+                  // User location dot with pulsing ring
                   Marker(
                     point: kUserLocation,
-                    width: 20,
-                    height: 20,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: c.accent, width: 2.5),
-                        boxShadow: [
-                          BoxShadow(
-                            color: c.accent.withValues(alpha: 0.4),
-                            blurRadius: 8,
-                            spreadRadius: 1,
-                          ),
-                        ],
-                      ),
-                      child: Center(
-                        child: Container(
-                          width: 6,
-                          height: 6,
-                          decoration: BoxDecoration(
-                            color: c.accent,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                      ),
+                    width: 40,
+                    height: 40,
+                    child: AnimatedBuilder(
+                      animation: _pulseController,
+                      builder: (_, __) {
+                        final pulse = Curves.easeInOut.transform(_pulseController.value);
+                        return Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            // Outer pulse ring
+                            Container(
+                              width: 28 + pulse * 10,
+                              height: 28 + pulse * 10,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: c.accent.withValues(alpha: 0.12 - pulse * 0.09),
+                                border: Border.all(
+                                  color: c.accent.withValues(alpha: 0.3 - pulse * 0.2),
+                                  width: 1,
+                                ),
+                              ),
+                            ),
+                            // Core dot
+                            Container(
+                              width: 15,
+                              height: 15,
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                shape: BoxShape.circle,
+                                border: Border.all(color: c.accent, width: 2.5),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: c.accent.withValues(alpha: 0.45),
+                                    blurRadius: 8,
+                                    spreadRadius: 1,
+                                  ),
+                                ],
+                              ),
+                              child: Center(
+                                child: Container(
+                                  width: 5,
+                                  height: 5,
+                                  decoration: BoxDecoration(
+                                    color: c.accent,
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        );
+                      },
                     ),
                   ),
                 ],
@@ -443,8 +554,9 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                       '3D',
                       style: TextStyle(
                         fontSize: 11,
-                        fontWeight: FontWeight.w600,
+                        fontWeight: FontWeight.w700,
                         color: _is3D ? c.accent : c.textMuted,
+                        letterSpacing: 0.5,
                       ),
                     ),
                   ),
@@ -465,18 +577,33 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
             ),
           ),
 
-          // Bottom overlay: route card OR legend
+          // Bottom overlay with smooth transitions between legend / loading / route
           Positioned(
             bottom: 12,
             left: 16,
             right: 16,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (_fetchingRoute) _buildRouteLoading(c),
-                if (hasRoute && !_fetchingRoute) _buildRouteCard(c),
-                if (!hasRoute && !_fetchingRoute) _buildLegend(c),
-              ],
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 320),
+              transitionBuilder: (child, anim) => FadeTransition(
+                opacity: anim,
+                child: SlideTransition(
+                  position: Tween(
+                    begin: const Offset(0, 0.35),
+                    end: Offset.zero,
+                  ).animate(CurvedAnimation(parent: anim, curve: Curves.easeOut)),
+                  child: child,
+                ),
+              ),
+              child: KeyedSubtree(
+                key: ValueKey(
+                  _fetchingRoute ? 'loading' : hasRoute ? 'route' : 'legend',
+                ),
+                child: _fetchingRoute
+                    ? _buildRouteLoading(c)
+                    : hasRoute
+                        ? _buildRouteCard(c)
+                        : _buildLegend(c),
+              ),
             ),
           ),
         ],
@@ -485,7 +612,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   }
 
   // ---------------------------------------------------------------------------
-  // Bottom widgets
+  // Bottom cards
   // ---------------------------------------------------------------------------
 
   Widget _buildLegend(JailooColors c) {
@@ -509,7 +636,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
 
   Widget _buildRouteLoading(JailooColors c) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
       decoration: BoxDecoration(
         color: c.bg.withValues(alpha: 0.95),
         borderRadius: BorderRadius.circular(8),
@@ -521,14 +648,11 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
           SizedBox(
             width: 14,
             height: 14,
-            child: CircularProgressIndicator(
-              strokeWidth: 2,
-              color: c.accent,
-            ),
+            child: CircularProgressIndicator(strokeWidth: 2, color: c.accent),
           ),
           const SizedBox(width: 10),
           Text(
-            'Building route...',
+            'Building route…',
             style: TextStyle(fontSize: 13, color: c.textMuted),
           ),
         ],
@@ -543,20 +667,20 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
     return Container(
       padding: const EdgeInsets.fromLTRB(14, 10, 10, 10),
       decoration: BoxDecoration(
-        color: c.bg.withValues(alpha: 0.95),
+        color: c.bg.withValues(alpha: 0.96),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: c.accent.withValues(alpha: 0.35)),
       ),
       child: Row(
         children: [
           Container(
-            width: 32,
-            height: 32,
+            width: 34,
+            height: 34,
             decoration: BoxDecoration(
               color: c.accent.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(6),
+              borderRadius: BorderRadius.circular(8),
             ),
-            child: Icon(Icons.route, color: c.accent, size: 16),
+            child: Icon(Icons.route, color: c.accent, size: 17),
           ),
           const SizedBox(width: 10),
           Expanded(
@@ -637,7 +761,6 @@ class _ZoneSheet extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 16),
-
               Row(
                 children: [
                   Expanded(
@@ -654,10 +777,7 @@ class _ZoneSheet extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(height: 2),
-                        Text(
-                          zone.nameEn,
-                          style: TextStyle(fontSize: 13, color: c.textMuted),
-                        ),
+                        Text(zone.nameEn, style: TextStyle(fontSize: 13, color: c.textMuted)),
                       ],
                     ),
                   ),
@@ -665,10 +785,8 @@ class _ZoneSheet extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 16),
-
               HealthBar(score: zone.healthScore),
               const SizedBox(height: 16),
-
               Row(
                 children: [
                   Expanded(child: DataCard(label: 'Health', value: '${zone.healthScore}', unit: '/100')),
@@ -685,7 +803,6 @@ class _ZoneSheet extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 16),
-
               Container(
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
@@ -698,11 +815,7 @@ class _ZoneSheet extends StatelessWidget {
                   children: [
                     Text(
                       'Details',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: c.textPrimary,
-                      ),
+                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: c.textPrimary),
                     ),
                     const SizedBox(height: 10),
                     _InfoRow(label: 'Area', value: '${zone.areaKm2.toStringAsFixed(0)} km²', colors: c),
@@ -716,11 +829,7 @@ class _ZoneSheet extends StatelessWidget {
                         Expanded(
                           child: Text(
                             zone.seasonNote,
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: c.textMuted,
-                              height: 1.4,
-                            ),
+                            style: TextStyle(fontSize: 12, color: c.textMuted, height: 1.4),
                           ),
                         ),
                       ],
@@ -729,7 +838,6 @@ class _ZoneSheet extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 16),
-
               SizedBox(
                 height: 48,
                 child: FilledButton.icon(
@@ -745,10 +853,7 @@ class _ZoneSheet extends StatelessWidget {
                           Navigator.pop(context);
                           onReport();
                         },
-                  icon: Icon(
-                    zone.status == 'banned' ? Icons.block : Icons.route,
-                    size: 16,
-                  ),
+                  icon: Icon(zone.status == 'banned' ? Icons.block : Icons.route, size: 16),
                   label: Text(
                     zone.status == 'banned' ? 'Zone banned' : 'Report: I\'m grazing here',
                     style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
@@ -777,14 +882,7 @@ class _InfoRow extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(label, style: TextStyle(fontSize: 12, color: colors.textMuted)),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-              color: colors.textPrimary,
-            ),
-          ),
+          Text(value, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: colors.textPrimary)),
         ],
       ),
     );
@@ -792,7 +890,7 @@ class _InfoRow extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// Reusable map toolbar button
+// Reusable toolbar button
 // ---------------------------------------------------------------------------
 
 class _MapButton extends StatelessWidget {
@@ -811,7 +909,8 @@ class _MapButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
-      child: Container(
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
         width: 36,
         height: 36,
         decoration: BoxDecoration(
@@ -820,7 +919,7 @@ class _MapButton extends StatelessWidget {
               : colors.bg.withValues(alpha: 0.92),
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
-            color: active ? colors.accent.withValues(alpha: 0.4) : colors.border,
+            color: active ? colors.accent.withValues(alpha: 0.45) : colors.border,
           ),
         ),
         child: Center(child: child),
@@ -879,11 +978,7 @@ class _LegendItem extends StatelessWidget {
   final Color color;
   final String label;
   final Color textColor;
-  const _LegendItem({
-    required this.color,
-    required this.label,
-    required this.textColor,
-  });
+  const _LegendItem({required this.color, required this.label, required this.textColor});
 
   @override
   Widget build(BuildContext context) {
