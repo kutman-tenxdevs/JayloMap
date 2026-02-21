@@ -19,8 +19,8 @@ class MapScreen extends StatefulWidget {
 }
 
 class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
-  static const _overviewCenter = LatLng(41.5, 75.5);
-  static const _overviewZoom = 8.2;
+  static const _overviewCenter = LatLng(41.46, 75.72);
+  static const _overviewZoom = 10.5;
 
   final _mapController = MapController();
   LatLng? _userLocation;
@@ -78,7 +78,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   }
 
   void _selectZone(Zone zone) {
-    _animateCamera(zone.center, 10.0);
+    _animateCamera(zone.center, 12.0);
 
     showModalBottomSheet(
       context: context,
@@ -91,7 +91,8 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   }
 
   void _onMapTap(TapPosition _, LatLng point) {
-    for (final zone in kZones) {
+    // Check banned first, then recovering, then healthy (top-most wins)
+    for (final zone in kZonesByTapOrder) {
       if (_isPointInPolygon(point, zone.boundary)) {
         _selectZone(zone);
         return;
@@ -132,13 +133,13 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
             options: MapOptions(
               initialCenter: _overviewCenter,
               initialZoom: _overviewZoom,
-              minZoom: 7.5,
-              maxZoom: 14,
+              minZoom: 9.5,
+              maxZoom: 15,
               onTap: _onMapTap,
               cameraConstraint: CameraConstraint.containCenter(
                 bounds: LatLngBounds(
-                  const LatLng(40.3, 73.4),
-                  const LatLng(42.8, 78.0),
+                  const LatLng(41.15, 75.10),
+                  const LatLng(41.75, 76.25),
                 ),
               ),
             ),
@@ -148,13 +149,14 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                 subdomains: const ['a', 'b', 'c', 'd'],
                 userAgentPackageName: 'com.jailoo.app',
               ),
+              // Render in z-order: healthy (bottom) → recovering → banned (top)
               PolygonLayer(
-                polygons: kZones.map((zone) {
+                polygons: kZonesByRenderOrder.map((zone) {
                   final color = JailooColors.statusColor(zone.status);
                   return Polygon(
                     points: zone.boundary,
-                    color: color.withValues(alpha: isDark ? 0.14 : 0.10),
-                    borderColor: color.withValues(alpha: isDark ? 0.55 : 0.65),
+                    color: color.withValues(alpha: isDark ? 0.16 : 0.12),
+                    borderColor: color.withValues(alpha: isDark ? 0.6 : 0.7),
                     borderStrokeWidth: 1.5,
                     isFilled: true,
                   );
@@ -318,7 +320,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
 }
 
 // ---------------------------------------------------------------------------
-// Bottom sheet shown when a zone is tapped
+// Bottom sheet
 // ---------------------------------------------------------------------------
 
 class _ZoneSheet extends StatelessWidget {
@@ -373,10 +375,7 @@ class _ZoneSheet extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(height: 2),
-                        Text(
-                          zone.nameEn,
-                          style: TextStyle(fontSize: 13, color: c.textMuted),
-                        ),
+                        Text(zone.nameEn, style: TextStyle(fontSize: 13, color: c.textMuted)),
                       ],
                     ),
                   ),
