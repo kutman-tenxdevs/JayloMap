@@ -3,7 +3,8 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
 import '../data/zones.dart';
-import '../widgets/zone_marker.dart';
+import '../models/zone.dart';
+import '../theme/colors.dart';
 import 'detail_screen.dart';
 
 class MapScreen extends StatefulWidget {
@@ -15,6 +16,7 @@ class MapScreen extends StatefulWidget {
 
 class _MapScreenState extends State<MapScreen> {
   LatLng? _userLocation;
+  final _mapController = MapController();
 
   @override
   void initState() {
@@ -23,19 +25,31 @@ class _MapScreenState extends State<MapScreen> {
   }
 
   Future<void> _fetchLocation() async {
-    final permission = await Geolocator.requestPermission();
-    if (permission == LocationPermission.denied) return;
-    final pos = await Geolocator.getCurrentPosition();
-    setState(() => _userLocation = LatLng(pos.latitude, pos.longitude));
+    try {
+      final permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) return;
+      final pos = await Geolocator.getCurrentPosition();
+      if (mounted) {
+        setState(() => _userLocation = LatLng(pos.latitude, pos.longitude));
+      }
+    } catch (_) {}
+  }
+
+  void _onZoneTap(Zone zone) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => DetailScreen(zone: zone)),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0A0F0A),
+      backgroundColor: JailooColors.bg,
       body: Stack(
         children: [
           FlutterMap(
+            mapController: _mapController,
             options: const MapOptions(
               initialCenter: LatLng(41.5, 75.6),
               initialZoom: 7.5,
@@ -49,44 +63,77 @@ class _MapScreenState extends State<MapScreen> {
                 subdomains: const ['a', 'b', 'c', 'd'],
                 userAgentPackageName: 'com.jailoo.app',
               ),
+              PolygonLayer(
+                polygons: kZones.map((zone) {
+                  final color = JailooColors.statusColor(zone.status);
+                  return Polygon(
+                    points: zone.boundary,
+                    color: color.withValues(alpha: 0.18),
+                    borderColor: color.withValues(alpha: 0.6),
+                    borderStrokeWidth: 1.5,
+                    isFilled: true,
+                  );
+                }).toList(),
+              ),
               MarkerLayer(
                 markers: [
-                  // Zone markers
-                  ...kZones.map((zone) => Marker(
-                    point: LatLng(zone.lat, zone.lng),
-                    width: 48,
-                    height: 48,
-                    child: GestureDetector(
-                      onTap: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => DetailScreen(zone: zone),
+                  ...kZones.map((zone) {
+                    final color = JailooColors.statusColor(zone.status);
+                    return Marker(
+                      point: zone.center,
+                      width: 120,
+                      height: 40,
+                      child: GestureDetector(
+                        onTap: () => _onZoneTap(zone),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: JailooColors.bg.withValues(alpha: 0.85),
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(
+                                  color: color.withValues(alpha: 0.4),
+                                  width: 1,
+                                ),
+                              ),
+                              child: Text(
+                                zone.nameEn,
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w500,
+                                  color: color,
+                                  letterSpacing: 0.5,
+                                ),
+                                textAlign: TextAlign.center,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Container(
+                              width: 6,
+                              height: 6,
+                              decoration: BoxDecoration(
+                                color: color,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                      child: ZoneMarker(zone: zone),
-                    ),
-                  )),
-                  // User GPS dot
+                    );
+                  }),
                   if (_userLocation != null)
                     Marker(
                       point: _userLocation!,
-                      width: 20,
-                      height: 20,
+                      width: 16,
+                      height: 16,
                       child: Container(
                         decoration: BoxDecoration(
                           color: Colors.white,
                           shape: BoxShape.circle,
-                          border: Border.all(
-                            color: const Color(0xFF2ECC71),
-                            width: 2.5,
-                          ),
-                          boxShadow: const [
-                            BoxShadow(
-                              color: Color(0x882ECC71),
-                              blurRadius: 12,
-                              spreadRadius: 2,
-                            ),
-                          ],
+                          border: Border.all(color: JailooColors.accent, width: 2),
                         ),
                       ),
                     ),
@@ -95,38 +142,57 @@ class _MapScreenState extends State<MapScreen> {
             ],
           ),
 
-          // Top bar
           SafeArea(
             child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'НАРЫН',
-                    style: TextStyle(
-                      fontFamily: 'BebasNeue',
-                      fontSize: 22,
-                      color: Color(0xFF2ECC71),
-                      letterSpacing: 4,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  color: JailooColors.bg.withValues(alpha: 0.9),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: JailooColors.border),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 8,
+                      height: 8,
+                      decoration: const BoxDecoration(
+                        color: JailooColors.accent,
+                        shape: BoxShape.circle,
+                      ),
                     ),
-                  ),
-                  Text(
-                    'Naryn Oblast · ${kZones.length} зон',
-                    style: const TextStyle(
-                      fontSize: 11,
-                      color: Color(0xFF7A9A7A),
-                      letterSpacing: 1,
+                    const SizedBox(width: 10),
+                    Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Naryn Oblast',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: JailooColors.textPrimary,
+                          ),
+                        ),
+                        Text(
+                          '${kZones.length} pasture zones',
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: JailooColors.textMuted,
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
 
-          // Legend bottom
           Positioned(
-            bottom: 24,
+            bottom: 16,
             left: 16,
             right: 16,
             child: _buildLegend(),
@@ -140,16 +206,16 @@ class _MapScreenState extends State<MapScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       decoration: BoxDecoration(
-        color: const Color(0xEE0D1A0D),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0x332ECC71)),
+        color: JailooColors.bg.withValues(alpha: 0.9),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: JailooColors.border),
       ),
       child: const Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
-          _LegendItem(color: Color(0xFF2ECC71), label: 'Безопасно'),
-          _LegendItem(color: Color(0xFFF4D03F), label: 'Восстановление'),
-          _LegendItem(color: Color(0xFFE74C3C), label: 'Запрет'),
+          _LegendItem(color: JailooColors.healthy, label: 'Safe'),
+          _LegendItem(color: JailooColors.recovering, label: 'Recovering'),
+          _LegendItem(color: JailooColors.banned, label: 'Banned'),
         ],
       ),
     );
@@ -164,10 +230,25 @@ class _LegendItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Row(
+      mainAxisSize: MainAxisSize.min,
       children: [
-        Container(width: 8, height: 8, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+        Container(
+          width: 10,
+          height: 10,
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.25),
+            borderRadius: BorderRadius.circular(2),
+            border: Border.all(color: color, width: 1),
+          ),
+        ),
         const SizedBox(width: 6),
-        Text(label, style: const TextStyle(fontSize: 10, color: Color(0xFF7A9A7A), letterSpacing: 0.5)),
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 11,
+            color: JailooColors.textMuted,
+          ),
+        ),
       ],
     );
   }
