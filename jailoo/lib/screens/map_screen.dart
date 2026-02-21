@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
-import 'package:geolocator/geolocator.dart';
 import 'package:provider/provider.dart';
 import '../data/zones.dart';
 import '../models/zone.dart';
@@ -23,30 +22,12 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   static const _overviewZoom = 10.5;
 
   final _mapController = MapController();
-  LatLng? _userLocation;
   AnimationController? _flyController;
-
-  @override
-  void initState() {
-    super.initState();
-    _fetchLocation();
-  }
 
   @override
   void dispose() {
     _flyController?.dispose();
     super.dispose();
-  }
-
-  Future<void> _fetchLocation() async {
-    try {
-      final permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.denied) return;
-      final pos = await Geolocator.getCurrentPosition();
-      if (mounted) {
-        setState(() => _userLocation = LatLng(pos.latitude, pos.longitude));
-      }
-    } catch (_) {}
   }
 
   void _animateCamera(LatLng target, double zoom) {
@@ -212,19 +193,25 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                       ),
                     );
                   }),
-                  if (_userLocation != null)
-                    Marker(
-                      point: _userLocation!,
-                      width: 14,
-                      height: 14,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          shape: BoxShape.circle,
-                          border: Border.all(color: c.accent, width: 2),
-                        ),
+                  Marker(
+                    point: kUserLocation,
+                    width: 16,
+                    height: 16,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: c.accent, width: 2.5),
+                        boxShadow: [
+                          BoxShadow(
+                            color: c.accent.withValues(alpha: 0.4),
+                            blurRadius: 8,
+                            spreadRadius: 1,
+                          ),
+                        ],
                       ),
                     ),
+                  ),
                 ],
               ),
             ],
