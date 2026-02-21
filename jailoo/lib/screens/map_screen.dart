@@ -1,8 +1,7 @@
 import 'dart:convert';
 import 'dart:math';
 import 'package:flutter/material.dart';
-import 'package:flutter_map/flutter_map.dart';
-import 'package:latlong2/latlong.dart';
+import 'package:maplibre_gl/maplibre_gl.dart';
 import 'package:provider/provider.dart';
 import 'package:http/http.dart' as http;
 import '../data/zones.dart';
@@ -21,20 +20,15 @@ class MapScreen extends StatefulWidget {
 }
 
 class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
-  static const _overviewCenter = LatLng(41.42, 75.88);
+  static final _overviewCenter = LatLng(41.42, 75.88);
   static const _overviewZoom = 9.6;
 
-  final _mapController = MapController();
+  MaplibreMapController? _mapController;
 
-  // Fly animation
-  AnimationController? _flyController;
-
-  // Route animation — draws the line progressively from user to destination
-  AnimationController? _routeAnimController;
-  CurvedAnimation? _routeCurve;
-
-  // Pulsing ring on user location dot
-  late AnimationController _pulseController;
+  // 3D state — tilt/bearing targets applied after style load
+  bool _is3D = false;
+  double _currentPitch = 0;
+  double _currentBearing = 0;
 
   // Route state
   List<LatLng> _routePoints = [];
@@ -42,11 +36,15 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   String _routeDuration = '';
   String _routeDistance = '';
   bool _fetchingRoute = false;
-
-  // 3D terrain toggle
-  bool _is3D = false;
-
   bool _reportPressed = false;
+
+  // Annotation handles (needed to remove/replace them)
+  Circle? _userDotCircle;
+  Circle? _userRingCircle;
+  Circle? _destCircle;
+
+  // Pulse animation drives the user-location outer ring radius/opacity
+  late AnimationController _pulseController;
 
   @override
   void initState() {
@@ -55,77 +53,326 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
       duration: const Duration(milliseconds: 1600),
       vsync: this,
     )..repeat(reverse: true);
+
+    // Update the outer pulse ring annotation every ~50 ms
+    _pulseController.addListener(_updatePulseRing);
   }
 
   @override
   void dispose() {
-    _flyController?.dispose();
-    _routeAnimController?.dispose();
+    _pulseController.removeListener(_updatePulseRing);
     _pulseController.dispose();
     super.dispose();
   }
 
   // ---------------------------------------------------------------------------
-  // Camera fly animation
+  // Map lifecycle
   // ---------------------------------------------------------------------------
 
-  void _animateCamera(LatLng target, double zoom) {
-    _flyController?.dispose();
+  void _onMapCreated(MaplibreMapController controller) {
+    _mapController = controller;
+  }
 
-    final cam = _mapController.camera;
-    final latTween = Tween(begin: cam.center.latitude, end: target.latitude);
-    final lngTween = Tween(begin: cam.center.longitude, end: target.longitude);
-    final zoomTween = Tween(begin: cam.zoom, end: zoom);
+  Future<void> _onStyleLoaded() async {
+    final ctrl = _mapController;
+    if (ctrl == null) return;
 
-    _flyController = AnimationController(
-      duration: const Duration(milliseconds: 700),
-      vsync: this,
-    );
+    // Clear previous annotations (style reload wipes style layers but not
+    // always annotations — clear explicitly to avoid duplicates).
+    await ctrl.clearCircles();
+    await ctrl.clearSymbols();
 
-    final curved = CurvedAnimation(
-      parent: _flyController!,
-      curve: Curves.easeInOutCubic,
-    );
+    await _addZoneLayers(ctrl);
+    await _addUserLocationMarker(ctrl);
+    await _addZoneLabels(ctrl);
 
-    _flyController!.addListener(() {
-      _mapController.move(
-        LatLng(latTween.evaluate(curved), lngTween.evaluate(curved)),
-        zoomTween.evaluate(curved),
+    if (_routePoints.isNotEmpty) await _addRouteToMap(ctrl, _routePoints);
+    if (_activeRouteZone != null) await _addDestinationMarker(ctrl, _activeRouteZone!);
+
+    // Restore tilt/bearing after style reload
+    final cam = ctrl.cameraPosition;
+    if (cam != null && (_currentPitch != 0 || _currentBearing != 0)) {
+      await ctrl.animateCamera(
+        CameraUpdate.newCameraPosition(
+          CameraPosition(
+            target: cam.target,
+            zoom: cam.zoom,
+            tilt: _currentPitch,
+            bearing: _currentBearing,
+          ),
+        ),
       );
-    });
-
-    _flyController!.forward();
+    }
   }
 
   // ---------------------------------------------------------------------------
-  // Zone selection
+  // GeoJSON zone layers
   // ---------------------------------------------------------------------------
 
-  void _selectZone(Zone zone) {
-    _animateCamera(zone.center, 12.5);
-    _reportPressed = false;
-
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (_) => _ZoneSheet(
-        zone: zone,
-        onReport: () {
-          _reportPressed = true;
-          _startRoute(zone);
+  String _buildZonesGeojson() {
+    final features = kZones.map((zone) {
+      final ring = [
+        ...zone.boundary.map((p) => [p.longitude, p.latitude]),
+        [zone.boundary.first.longitude, zone.boundary.first.latitude],
+      ];
+      return {
+        'type': 'Feature',
+        'id': zone.id.toString(),
+        'properties': {
+          'id': zone.id,
+          'status': zone.status,
+          'nameEn': zone.nameEn,
+          'healthScore': zone.healthScore,
         },
-      ),
-    ).then((_) {
-      if (mounted && !_reportPressed) {
-        _animateCamera(_overviewCenter, _overviewZoom);
-      }
-    });
+        'geometry': {
+          'type': 'Polygon',
+          'coordinates': [ring],
+        },
+      };
+    }).toList();
+
+    return jsonEncode({'type': 'FeatureCollection', 'features': features});
   }
 
-  void _onMapTap(TapPosition _, LatLng point) {
+  Future<void> _addZoneLayers(MaplibreMapController ctrl) async {
+    final geojson = _buildZonesGeojson();
+    await ctrl.addSource('zones', GeojsonSourceProperties(data: geojson));
+
+    for (final entry in {
+      'healthy': '#22C55E',
+      'recovering': '#F59E0B',
+      'banned': '#EF4444',
+    }.entries) {
+      final filter = ['==', ['get', 'status'], entry.key];
+      await ctrl.addFillLayer(
+        'zones',
+        'zones-fill-${entry.key}',
+        FillLayerProperties(fillColor: entry.value, fillOpacity: 0.15),
+        filter: filter,
+      );
+      await ctrl.addLineLayer(
+        'zones',
+        'zones-border-${entry.key}',
+        LineLayerProperties(
+          lineColor: entry.value,
+          lineWidth: 1.8,
+          lineCap: 'round',
+          lineJoin: 'round',
+        ),
+        filter: filter,
+      );
+    }
+
+    // Highlight layer for the active route zone (initially matches nothing)
+    await ctrl.addFillLayer(
+      'zones',
+      'zones-highlight',
+      FillLayerProperties(fillColor: '#22C55E', fillOpacity: 0.28),
+      filter: ['==', ['get', 'id'], -1],
+    );
+  }
+
+  Future<void> _updateHighlight(MaplibreMapController ctrl, Zone? zone) async {
+    try {
+      if (zone == null) {
+        await ctrl.setLayerProperties(
+          'zones-highlight',
+          FillLayerProperties(fillColor: '#22C55E', fillOpacity: 0.28),
+        );
+        await ctrl.setFilter('zones-highlight', ['==', ['get', 'id'], -1]);
+      } else {
+        final color = JailooColors.statusColorHex(zone.status);
+        await ctrl.setLayerProperties(
+          'zones-highlight',
+          FillLayerProperties(fillColor: color, fillOpacity: 0.28),
+        );
+        await ctrl.setFilter('zones-highlight', ['==', ['get', 'id'], zone.id]);
+      }
+    } catch (_) {}
+  }
+
+  // ---------------------------------------------------------------------------
+  // User location marker (circle + pulsing outer ring)
+  // ---------------------------------------------------------------------------
+
+  Future<void> _addUserLocationMarker(MaplibreMapController ctrl) async {
+    _userRingCircle = await ctrl.addCircle(CircleOptions(
+      geometry: kUserLocation,
+      circleRadius: 16,
+      circleColor: '#22C55E',
+      circleOpacity: 0.12,
+      circleStrokeWidth: 0,
+    ));
+    _userDotCircle = await ctrl.addCircle(CircleOptions(
+      geometry: kUserLocation,
+      circleRadius: 7,
+      circleColor: '#FFFFFF',
+      circleStrokeColor: '#22C55E',
+      circleStrokeWidth: 2.5,
+    ));
+  }
+
+  void _updatePulseRing() {
+    final ctrl = _mapController;
+    final ring = _userRingCircle;
+    if (ctrl == null || ring == null) return;
+
+    final t = Curves.easeInOut.transform(_pulseController.value);
+    ctrl.updateCircle(
+      ring,
+      CircleOptions(
+        circleRadius: 14 + t * 8,
+        circleOpacity: 0.12 - t * 0.08,
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Zone label symbols
+  // ---------------------------------------------------------------------------
+
+  Future<void> _addZoneLabels(MaplibreMapController ctrl) async {
+    for (final zone in kZones) {
+      final colorHex = JailooColors.statusColorHex(zone.status);
+      await ctrl.addSymbol(SymbolOptions(
+        geometry: LatLng(zone.lat, zone.lng),
+        textField: zone.nameEn,
+        textSize: 10.5,
+        textColor: colorHex,
+        textHaloColor: '#FFFFFF',
+        textHaloWidth: 1.5,
+        textOffset: const Offset(0, -2.2),
+        textAnchor: 'bottom',
+      ));
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Route
+  // ---------------------------------------------------------------------------
+
+  Future<void> _addRouteToMap(MaplibreMapController ctrl, List<LatLng> pts) async {
+    final coords = pts.map((p) => [p.longitude, p.latitude]).toList();
+    final geojson = jsonEncode({
+      'type': 'FeatureCollection',
+      'features': [
+        {
+          'type': 'Feature',
+          'properties': {},
+          'geometry': {'type': 'LineString', 'coordinates': coords},
+        }
+      ],
+    });
+
+    // Remove stale layers/source if present
+    for (final id in ['route-line', 'route-outline']) {
+      try { await ctrl.removeLayer(id); } catch (_) {}
+    }
+    try { await ctrl.removeSource('route'); } catch (_) {}
+
+    await ctrl.addSource('route', GeojsonSourceProperties(data: geojson));
+    await ctrl.addLineLayer(
+      'route', 'route-outline',
+      LineLayerProperties(
+        lineColor: '#FFFFFF',
+        lineWidth: 7.5,
+        lineOpacity: 0.6,
+        lineCap: 'round',
+        lineJoin: 'round',
+      ),
+    );
+    await ctrl.addLineLayer(
+      'route', 'route-line',
+      LineLayerProperties(
+        lineColor: '#22C55E',
+        lineWidth: 4.5,
+        lineCap: 'round',
+        lineJoin: 'round',
+      ),
+    );
+  }
+
+  Future<void> _removeRouteFromMap(MaplibreMapController ctrl) async {
+    for (final id in ['route-line', 'route-outline']) {
+      try { await ctrl.removeLayer(id); } catch (_) {}
+    }
+    try { await ctrl.removeSource('route'); } catch (_) {}
+  }
+
+  Future<void> _addDestinationMarker(MaplibreMapController ctrl, Zone zone) async {
+    if (_destCircle != null) {
+      try { await ctrl.removeCircle(_destCircle!); } catch (_) {}
+      _destCircle = null;
+    }
+    _destCircle = await ctrl.addCircle(CircleOptions(
+      geometry: LatLng(zone.lat, zone.lng),
+      circleRadius: 11,
+      circleColor: '#22C55E',
+      circleStrokeColor: '#FFFFFF',
+      circleStrokeWidth: 2.5,
+    ));
+  }
+
+  // ---------------------------------------------------------------------------
+  // Camera animation
+  // ---------------------------------------------------------------------------
+
+  Future<void> _animateCamera(
+    LatLng target,
+    double zoom, {
+    double? tilt,
+    double? bearing,
+  }) async {
+    await _mapController?.animateCamera(
+      CameraUpdate.newCameraPosition(
+        CameraPosition(
+          target: target,
+          zoom: zoom,
+          tilt: tilt ?? _currentPitch,
+          bearing: bearing ?? _currentBearing,
+        ),
+      ),
+      duration: const Duration(milliseconds: 700),
+    );
+  }
+
+  void _onCameraIdle() {
+    final cam = _mapController?.cameraPosition;
+    if (cam != null && mounted) {
+      setState(() {
+        _currentPitch = cam.tilt;
+        _currentBearing = cam.bearing;
+      });
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // 3D toggle
+  // ---------------------------------------------------------------------------
+
+  void _toggle3D() {
+    setState(() => _is3D = !_is3D);
+    // Style will reload (styleString changed) → _onStyleLoaded handles camera
+    _currentPitch = _is3D ? 55.0 : 0.0;
+    _currentBearing = _is3D ? -15.0 : 0.0;
+  }
+
+  void _resetCamera() {
+    setState(() {
+      _is3D = false;
+      _currentPitch = 0;
+      _currentBearing = 0;
+    });
+    _animateCamera(_overviewCenter, _overviewZoom, tilt: 0, bearing: 0);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Zone tap & selection
+  // ---------------------------------------------------------------------------
+
+  void _onMapTap(Point<double> _, LatLng coords) {
     for (final zone in kZonesByTapOrder) {
-      if (_isPointInPolygon(point, zone.boundary)) {
+      if (_isPointInPolygon(coords, zone.boundary)) {
         _selectZone(zone);
         return;
       }
@@ -147,6 +394,33 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
     return inside;
   }
 
+  void _selectZone(Zone zone) {
+    _animateCamera(zone.center, 12.5);
+    _reportPressed = false;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (_) => _ZoneSheet(
+        zone: zone,
+        onReport: () {
+          _reportPressed = true;
+          _startRoute(zone);
+        },
+      ),
+    ).then((_) {
+      if (mounted && !_reportPressed) {
+        _animateCamera(_overviewCenter, _overviewZoom);
+        final ctrl = _mapController;
+        if (ctrl != null) _updateHighlight(ctrl, null);
+      }
+    });
+
+    final ctrl = _mapController;
+    if (ctrl != null) _updateHighlight(ctrl, zone);
+  }
+
   // ---------------------------------------------------------------------------
   // Routing
   // ---------------------------------------------------------------------------
@@ -158,10 +432,8 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
       _activeRouteZone = null;
     });
 
-    // Fly to frame both user and destination
     final midLat = (kUserLocation.latitude + zone.center.latitude) / 2;
     final midLng = (kUserLocation.longitude + zone.center.longitude) / 2;
-    // Offset center slightly south so bottom sheet doesn't cover the route
     _animateCamera(LatLng(midLat - 0.04, midLng), 10.2);
 
     try {
@@ -171,9 +443,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
         '${zone.center.longitude},${zone.center.latitude}'
         '?overview=full&geometries=geojson',
       );
-
       final response = await http.get(url).timeout(const Duration(seconds: 10));
-
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         final routes = data['routes'] as List;
@@ -181,15 +451,11 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
           final coords = routes[0]['geometry']['coordinates'] as List;
           final duration = (routes[0]['duration'] as num).toInt();
           final distance = (routes[0]['distance'] as num).toInt();
-
           if (mounted) {
-            _setRoute(
+            await _applyRoute(
               zone: zone,
               points: coords
-                  .map((c) => LatLng(
-                        (c[1] as num).toDouble(),
-                        (c[0] as num).toDouble(),
-                      ))
+                  .map((c) => LatLng((c[1] as num).toDouble(), (c[0] as num).toDouble()))
                   .toList(),
               duration: _fmt(duration),
               distance: _fmtM(distance),
@@ -200,10 +466,9 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
       }
     } catch (_) {}
 
-    // Fallback: straight line from user dot to zone center
+    // Fallback: straight line
     if (mounted) {
       final dist = _haversineM(kUserLocation, zone.center);
-      // Generate intermediate points along a straight line for smoother animation
       const steps = 30;
       final pts = List.generate(steps + 1, (i) {
         final t = i / steps;
@@ -212,7 +477,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
           kUserLocation.longitude + t * (zone.center.longitude - kUserLocation.longitude),
         );
       });
-      _setRoute(
+      await _applyRoute(
         zone: zone,
         points: pts,
         duration: '~${_fmt((dist / 5000 * 3600).round())}',
@@ -221,22 +486,12 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
     }
   }
 
-  void _setRoute({
+  Future<void> _applyRoute({
     required Zone zone,
     required List<LatLng> points,
     required String duration,
     required String distance,
-  }) {
-    _routeAnimController?.dispose();
-    _routeAnimController = AnimationController(
-      duration: const Duration(milliseconds: 1400),
-      vsync: this,
-    );
-    _routeCurve = CurvedAnimation(
-      parent: _routeAnimController!,
-      curve: Curves.easeInOut,
-    );
-
+  }) async {
     setState(() {
       _routePoints = points;
       _activeRouteZone = zone;
@@ -245,10 +500,23 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
       _fetchingRoute = false;
     });
 
-    _routeAnimController!.forward();
+    final ctrl = _mapController;
+    if (ctrl != null) {
+      await _addRouteToMap(ctrl, points);
+      await _addDestinationMarker(ctrl, zone);
+    }
   }
 
-  void _clearRoute() {
+  Future<void> _clearRoute() async {
+    final ctrl = _mapController;
+    if (ctrl != null) {
+      await _removeRouteFromMap(ctrl);
+      if (_destCircle != null) {
+        try { await ctrl.removeCircle(_destCircle!); } catch (_) {}
+        _destCircle = null;
+      }
+      await _updateHighlight(ctrl, null);
+    }
     setState(() {
       _routePoints = [];
       _activeRouteZone = null;
@@ -256,8 +524,6 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
       _routeDistance = '';
       _fetchingRoute = false;
     });
-    _routeAnimController?.dispose();
-    _routeAnimController = null;
     _animateCamera(_overviewCenter, _overviewZoom);
   }
 
@@ -284,20 +550,17 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   }
 
   // ---------------------------------------------------------------------------
-  // Tile URL
+  // Style URL
   // ---------------------------------------------------------------------------
 
-  String _tileUrl(bool isDark, bool is3D) {
-    if (is3D) {
-      // OpenTopoMap — contours, elevation, peaks, glaciers, rivers.
-      // Equivalent to OpenFreeMap "liberty" style for terrain context.
-      return 'https://tile.opentopomap.org/{z}/{x}/{y}.png';
+  String _styleUrl(bool isDark) {
+    if (_is3D) {
+      // Liberty style has 3D building extrusions and richer terrain data
+      return 'https://tiles.openfreemap.org/styles/liberty';
     }
-    if (isDark) {
-      return 'https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png';
-    }
-    // OSM standard tile — same data source as OpenFreeMap "bright" style
-    return 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+    return isDark
+        ? 'https://tiles.openfreemap.org/styles/liberty'
+        : 'https://tiles.openfreemap.org/styles/bright';
   }
 
   // ---------------------------------------------------------------------------
@@ -314,228 +577,23 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
       backgroundColor: c.bg,
       body: Stack(
         children: [
-          FlutterMap(
-            mapController: _mapController,
-            options: MapOptions(
-              initialCenter: _overviewCenter,
-              initialZoom: _overviewZoom,
-              minZoom: 8.5,
-              maxZoom: 15,
-              onTap: _onMapTap,
-              cameraConstraint: CameraConstraint.containCenter(
-                bounds: LatLngBounds(
-                  const LatLng(41.05, 75.25),
-                  const LatLng(41.80, 76.55),
-                ),
-              ),
+          MaplibreMap(
+            styleString: _styleUrl(isDark),
+            initialCameraPosition: CameraPosition(
+              target: _overviewCenter,
+              zoom: _overviewZoom,
             ),
-            children: [
-              TileLayer(
-                urlTemplate: _tileUrl(isDark, _is3D),
-                subdomains: const ['a', 'b', 'c', 'd'],
-                userAgentPackageName: 'com.jailoo.app',
-                maxZoom: 17,
-              ),
-
-              // Route polyline — animated draw from user dot to destination
-              if (hasRoute && _routeAnimController != null)
-                AnimatedBuilder(
-                  animation: _routeAnimController!,
-                  builder: (_, __) {
-                    final progress = _routeCurve?.value ?? 1.0;
-                    final count = max(2, (_routePoints.length * progress).round());
-                    final pts = _routePoints.sublist(0, count);
-                    return PolylineLayer(
-                      polylines: [
-                        Polyline(
-                          points: pts,
-                          color: Colors.white.withValues(alpha: 0.55),
-                          strokeWidth: 7,
-                          strokeCap: StrokeCap.round,
-                          strokeJoin: StrokeJoin.round,
-                        ),
-                        Polyline(
-                          points: pts,
-                          color: c.accent,
-                          strokeWidth: 4.5,
-                          strokeCap: StrokeCap.round,
-                          strokeJoin: StrokeJoin.round,
-                        ),
-                      ],
-                    );
-                  },
-                ),
-
-              // Zone fills: healthy → recovering → banned (z-order)
-              PolygonLayer(
-                polygons: kZonesByRenderOrder.map((zone) {
-                  final color = JailooColors.statusColor(zone.status);
-                  final isActive = zone.id == _activeRouteZone?.id;
-                  return Polygon(
-                    points: zone.boundary,
-                    color: color.withValues(
-                      alpha: isActive
-                          ? (isDark ? 0.30 : 0.24)
-                          : (isDark ? 0.16 : 0.12),
-                    ),
-                    borderColor: color.withValues(alpha: isDark ? 0.60 : 0.70),
-                    borderStrokeWidth: isActive ? 2.5 : 1.5,
-                    isFilled: true,
-                  );
-                }).toList(),
-              ),
-
-              MarkerLayer(
-                markers: [
-                  // Zone label markers
-                  ...kZones.map((zone) {
-                    final color = JailooColors.statusColor(zone.status);
-                    return Marker(
-                      point: zone.center,
-                      width: 110,
-                      height: 36,
-                      child: GestureDetector(
-                        onTap: () => _selectZone(zone),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 3,
-                              ),
-                              decoration: BoxDecoration(
-                                color: c.bg.withValues(alpha: 0.88),
-                                borderRadius: BorderRadius.circular(6),
-                                border: Border.all(
-                                  color: color.withValues(alpha: 0.4),
-                                ),
-                              ),
-                              child: Text(
-                                zone.nameEn,
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w500,
-                                  color: color,
-                                  letterSpacing: 0.3,
-                                ),
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Container(
-                              width: 5,
-                              height: 5,
-                              decoration: BoxDecoration(
-                                color: color,
-                                shape: BoxShape.circle,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  }),
-
-                  // Destination marker — animates in with elastic scale
-                  if (hasRoute && _activeRouteZone != null)
-                    Marker(
-                      point: _activeRouteZone!.center,
-                      width: 32,
-                      height: 32,
-                      child: AnimatedBuilder(
-                        animation: _routeAnimController!,
-                        builder: (_, __) {
-                          final scale = Curves.elasticOut
-                              .transform((_routeCurve?.value ?? 1.0).clamp(0.0, 1.0));
-                          return Transform.scale(
-                            scale: scale,
-                            child: Container(
-                              width: 26,
-                              height: 26,
-                              decoration: BoxDecoration(
-                                color: c.accent,
-                                shape: BoxShape.circle,
-                                border: Border.all(color: Colors.white, width: 2.5),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: c.accent.withValues(alpha: 0.5),
-                                    blurRadius: 12,
-                                    spreadRadius: 3,
-                                  ),
-                                ],
-                              ),
-                              child: const Icon(
-                                Icons.flag,
-                                color: Colors.white,
-                                size: 13,
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-
-                  // User location dot with pulsing ring
-                  Marker(
-                    point: kUserLocation,
-                    width: 40,
-                    height: 40,
-                    child: AnimatedBuilder(
-                      animation: _pulseController,
-                      builder: (_, __) {
-                        final pulse = Curves.easeInOut.transform(_pulseController.value);
-                        return Stack(
-                          alignment: Alignment.center,
-                          children: [
-                            // Outer pulse ring
-                            Container(
-                              width: 28 + pulse * 10,
-                              height: 28 + pulse * 10,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: c.accent.withValues(alpha: 0.12 - pulse * 0.09),
-                                border: Border.all(
-                                  color: c.accent.withValues(alpha: 0.3 - pulse * 0.2),
-                                  width: 1,
-                                ),
-                              ),
-                            ),
-                            // Core dot
-                            Container(
-                              width: 15,
-                              height: 15,
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                shape: BoxShape.circle,
-                                border: Border.all(color: c.accent, width: 2.5),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: c.accent.withValues(alpha: 0.45),
-                                    blurRadius: 8,
-                                    spreadRadius: 1,
-                                  ),
-                                ],
-                              ),
-                              child: Center(
-                                child: Container(
-                                  width: 5,
-                                  height: 5,
-                                  decoration: BoxDecoration(
-                                    color: c.accent,
-                                    shape: BoxShape.circle,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        );
-                      },
-                    ),
-                  ),
-                ],
-              ),
-            ],
+            minMaxZoomPreference: const MinMaxZoomPreference(8.0, 15.0),
+            onMapCreated: _onMapCreated,
+            onStyleLoadedCallback: _onStyleLoaded,
+            onMapClick: _onMapTap,
+            onCameraIdle: _onCameraIdle,
+            myLocationEnabled: false,
+            compassEnabled: false,
+            rotateGesturesEnabled: true,
+            tiltGesturesEnabled: true,
+            scrollGesturesEnabled: true,
+            zoomGesturesEnabled: true,
           ),
 
           // Top bar
@@ -546,10 +604,33 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                 children: [
                   _HeaderPill(c: c),
                   const Spacer(),
+                  // Camera info pill (shows tilt/bearing when non-zero)
+                  AnimatedOpacity(
+                    opacity: (_currentPitch != 0 || _currentBearing != 0) ? 1 : 0,
+                    duration: const Duration(milliseconds: 300),
+                    child: Container(
+                      margin: const EdgeInsets.only(right: 8),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: c.bg.withValues(alpha: 0.92),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: c.border),
+                      ),
+                      child: Text(
+                        'Pitch ${_currentPitch.round()}°  Bearing ${_currentBearing.round()}°',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontFamily: 'DMMono',
+                          color: c.textMuted,
+                        ),
+                      ),
+                    ),
+                  ),
+                  // 3D toggle
                   _MapButton(
                     colors: c,
                     active: _is3D,
-                    onTap: () => setState(() => _is3D = !_is3D),
+                    onTap: _toggle3D,
                     child: Text(
                       '3D',
                       style: TextStyle(
@@ -561,13 +642,23 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                     ),
                   ),
                   const SizedBox(width: 8),
+                  // Reset camera
+                  _MapButton(
+                    colors: c,
+                    onTap: _resetCamera,
+                    child: Icon(
+                      Icons.explore_outlined,
+                      size: 15,
+                      color: c.textMuted,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  // Theme toggle
                   _MapButton(
                     colors: c,
                     onTap: () => context.read<ThemeProvider>().toggle(),
                     child: Icon(
-                      context.watch<ThemeProvider>().isDark
-                          ? Icons.light_mode_outlined
-                          : Icons.dark_mode_outlined,
+                      isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
                       size: 15,
                       color: c.textMuted,
                     ),
@@ -577,7 +668,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
             ),
           ),
 
-          // Bottom overlay with smooth transitions between legend / loading / route
+          // Bottom overlay
           Positioned(
             bottom: 12,
             left: 16,
@@ -595,9 +686,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                 ),
               ),
               child: KeyedSubtree(
-                key: ValueKey(
-                  _fetchingRoute ? 'loading' : hasRoute ? 'route' : 'legend',
-                ),
+                key: ValueKey(_fetchingRoute ? 'loading' : hasRoute ? 'route' : 'legend'),
                 child: _fetchingRoute
                     ? _buildRouteLoading(c)
                     : hasRoute
@@ -612,7 +701,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   }
 
   // ---------------------------------------------------------------------------
-  // Bottom cards
+  // Bottom panels
   // ---------------------------------------------------------------------------
 
   Widget _buildLegend(JailooColors c) {
@@ -651,10 +740,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
             child: CircularProgressIndicator(strokeWidth: 2, color: c.accent),
           ),
           const SizedBox(width: 10),
-          Text(
-            'Building route…',
-            style: TextStyle(fontSize: 13, color: c.textMuted),
-          ),
+          Text('Building route…', style: TextStyle(fontSize: 13, color: c.textMuted)),
         ],
       ),
     );
@@ -689,11 +775,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
               children: [
                 Text(
                   'Route to ${zone.nameEn}',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: c.textPrimary,
-                  ),
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: c.textPrimary),
                 ),
                 const SizedBox(height: 2),
                 Text(
@@ -855,7 +937,7 @@ class _ZoneSheet extends StatelessWidget {
                         },
                   icon: Icon(zone.status == 'banned' ? Icons.block : Icons.route, size: 16),
                   label: Text(
-                    zone.status == 'banned' ? 'Zone banned' : 'Report: I\'m grazing here',
+                    zone.status == 'banned' ? 'Zone banned' : "Report: I'm grazing here",
                     style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
                   ),
                 ),
@@ -890,7 +972,7 @@ class _InfoRow extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// Reusable toolbar button
+// Toolbar widgets
 // ---------------------------------------------------------------------------
 
 class _MapButton extends StatelessWidget {
@@ -956,11 +1038,7 @@ class _HeaderPill extends StatelessWidget {
             children: [
               Text(
                 'Naryn Oblast',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: c.textPrimary,
-                ),
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: c.textPrimary),
               ),
               Text(
                 '${kZones.length} pasture zones',
