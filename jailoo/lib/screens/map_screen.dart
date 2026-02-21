@@ -143,16 +143,19 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
     final geojson = _buildZonesGeojson();
     await ctrl.addSource('zones', GeojsonSourceProperties(data: geojson));
 
+    // Use legacy filter syntax ['==', 'property', value] — the expression
+    // form ['==', ['get', 'property'], value] is not reliably handled by
+    // maplibre_gl 0.21 on Android.
     for (final entry in {
       'healthy': '#22C55E',
       'recovering': '#F59E0B',
       'banned': '#EF4444',
     }.entries) {
-      final filter = ['==', ['get', 'status'], entry.key];
+      final filter = ['==', 'status', entry.key];
       await ctrl.addFillLayer(
         'zones',
         'zones-fill-${entry.key}',
-        FillLayerProperties(fillColor: entry.value, fillOpacity: 0.15),
+        FillLayerProperties(fillColor: entry.value, fillOpacity: 0.20),
         filter: filter,
       );
       await ctrl.addLineLayer(
@@ -160,7 +163,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
         'zones-border-${entry.key}',
         LineLayerProperties(
           lineColor: entry.value,
-          lineWidth: 1.8,
+          lineWidth: 2.0,
           lineCap: 'round',
           lineJoin: 'round',
         ),
@@ -168,31 +171,23 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
       );
     }
 
-    // Highlight layer for the active route zone (initially matches nothing)
+    // Highlight layer: initially matches nothing (id -1 never exists).
+    // Uses legacy filter so the comparison is reliable.
     await ctrl.addFillLayer(
       'zones',
       'zones-highlight',
-      FillLayerProperties(fillColor: '#22C55E', fillOpacity: 0.28),
-      filter: ['==', ['get', 'id'], -1],
+      FillLayerProperties(fillColor: '#22C55E', fillOpacity: 0.30),
+      filter: ['==', 'id', -1],
     );
 
-    // Zone name labels as a SymbolLayer on the zones source.
-    // Using addSymbolLayer (not addSymbol annotations) so MapLibre uses the
-    // style's own glyph server — avoids the "Open Sans Regular" 404 error
-    // that occurs when annotation text falls back to a hardcoded font stack.
+    // Zone name labels — static color avoids expression-font interaction issues.
     await ctrl.addSymbolLayer(
       'zones',
       'zones-labels',
-      SymbolLayerProperties(
+      const SymbolLayerProperties(
         textField: ['get', 'nameEn'],
         textSize: 11.0,
-        textColor: [
-          'match', ['get', 'status'],
-          'healthy',    '#16A34A',
-          'recovering', '#D97706',
-          'banned',     '#DC2626',
-          '#71717A',
-        ],
+        textColor: '#1a1a1a',
         textHaloColor: '#FFFFFF',
         textHaloWidth: 1.5,
         textAllowOverlap: false,
@@ -211,27 +206,27 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
 
     if (zone == null) {
       try {
-        // Hide highlight by matching no zone
-        await ctrl.setFilter('zones-highlight', ['==', ['get', 'id'], -1]);
+        await ctrl.setFilter('zones-highlight', ['==', 'id', -1]);
       } catch (_) {}
       return;
     }
 
     final color = JailooColors.statusColorHex(zone.status);
     try {
-      await ctrl.setFilter('zones-highlight', ['==', ['get', 'id'], zone.id]);
+      // Legacy filter syntax — more reliable on Android maplibre_gl 0.21
+      await ctrl.setFilter('zones-highlight', ['==', 'id', zone.id]);
       await ctrl.setLayerProperties(
         'zones-highlight',
-        FillLayerProperties(fillColor: color, fillOpacity: 0.28),
+        FillLayerProperties(fillColor: color, fillOpacity: 0.30),
       );
     } catch (_) { return; }
 
-    // Gentle opacity pulse on the highlight layer to draw attention
-    double opacity = 0.28;
+    // Gentle opacity pulse
+    double opacity = 0.30;
     _highlightPulseUp = true;
-    _highlightPulseTimer = Timer.periodic(const Duration(milliseconds: 40), (_) async {
-      opacity += _highlightPulseUp ? 0.008 : -0.008;
-      if (opacity >= 0.40) _highlightPulseUp = false;
+    _highlightPulseTimer = Timer.periodic(const Duration(milliseconds: 50), (_) async {
+      opacity += _highlightPulseUp ? 0.007 : -0.007;
+      if (opacity >= 0.42) _highlightPulseUp = false;
       if (opacity <= 0.18) _highlightPulseUp = true;
       try {
         await ctrl.setLayerProperties(
@@ -394,12 +389,12 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   }
 
   void _onCameraIdle() {
+    // Track internally so style-reload can restore tilt/bearing.
+    // No setState — these are not displayed in the UI.
     final cam = _mapController?.cameraPosition;
-    if (cam != null && mounted) {
-      setState(() {
-        _currentPitch = cam.tilt;
-        _currentBearing = cam.bearing;
-      });
+    if (cam != null) {
+      _currentPitch = cam.tilt;
+      _currentBearing = cam.bearing;
     }
   }
 
@@ -640,7 +635,13 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
               target: _overviewCenter,
               zoom: _overviewZoom,
             ),
-            minMaxZoomPreference: const MinMaxZoomPreference(8.0, 15.0),
+            minMaxZoomPreference: const MinMaxZoomPreference(8.5, 15.0),
+            cameraTargetBounds: CameraTargetBounds(
+              LatLngBounds(
+                southwest: const LatLng(41.05, 75.25),
+                northeast: const LatLng(41.80, 76.55),
+              ),
+            ),
             onMapCreated: _onMapCreated,
             onStyleLoadedCallback: _onStyleLoaded,
             onMapClick: _onMapTap,
@@ -661,28 +662,6 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                 children: [
                   _HeaderPill(c: c),
                   const Spacer(),
-                  // Camera info pill (shows tilt/bearing when non-zero)
-                  AnimatedOpacity(
-                    opacity: (_currentPitch != 0 || _currentBearing != 0) ? 1 : 0,
-                    duration: const Duration(milliseconds: 300),
-                    child: Container(
-                      margin: const EdgeInsets.only(right: 8),
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: c.bg.withValues(alpha: 0.92),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: c.border),
-                      ),
-                      child: Text(
-                        'Pitch ${_currentPitch.round()}°  Bearing ${_currentBearing.round()}°',
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontFamily: 'DMMono',
-                          color: c.textMuted,
-                        ),
-                      ),
-                    ),
-                  ),
                   // 3D toggle
                   _MapButton(
                     colors: c,
