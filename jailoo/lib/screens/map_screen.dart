@@ -95,7 +95,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   // GeoJSON zone layers
   // ---------------------------------------------------------------------------
 
-  String _buildZonesGeojson() {
+  Map<String, dynamic> _buildZonesGeojson() {
     final features = kZones.map((zone) {
       final ring = [
         ...zone.boundary.map((p) => [p.longitude, p.latitude]),
@@ -117,7 +117,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
       };
     }).toList();
 
-    return jsonEncode({'type': 'FeatureCollection', 'features': features});
+    return {'type': 'FeatureCollection', 'features': features};
   }
 
   Future<void> _addZoneLayers(MapLibreMapController ctrl) async {
