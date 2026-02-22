@@ -39,25 +39,6 @@ class _AiScreenState extends State<AiScreen> {
   int _streamIndex = 0;
   Timer? _streamTimer;
 
-  // Preset questions for the empty state
-  static const _presets = [
-    (label: 'Куда вести 60 овец?', query: 'Куда лучше вести 60 овец на выпас?'),
-    (
-      label: 'Какая зона самая здоровая?',
-      query: 'Какая зона сейчас самая здоровая?'
-    ),
-    (label: 'Где безопасно пасти?', query: 'Где сейчас безопасно пасти скот?'),
-    (
-      label: 'Когда откроется Ак-Талаа?',
-      query: 'Когда откроется зона Ак-Талаа?'
-    ),
-  ];
-
-  void _sendText(String text) {
-    _controller.text = text;
-    _send();
-  }
-
   Future<void> _send() async {
     final text = _controller.text.trim();
     if (text.isEmpty || _loading || _streaming) return;
@@ -172,61 +153,38 @@ class _AiScreenState extends State<AiScreen> {
   // ---------------------------------------------------------------------------
 
   Widget _buildEmptyState(JailooColors c) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 32),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Container(
-            width: 52,
-            height: 52,
-            decoration: BoxDecoration(
-              color: c.accent.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(14),
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 52,
+              height: 52,
+              decoration: BoxDecoration(
+                color: c.accent.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Icon(Icons.landscape_outlined, color: c.accent, size: 26),
             ),
-            child: Icon(Icons.landscape_outlined, color: c.accent, size: 26),
-          ),
-          const SizedBox(height: 14),
-          Text(
-            'Спросите о пастбищах',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: c.textPrimary,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            'Получите рекомендации для вашего стада\nна основе актуальных данных зон',
-            style: TextStyle(fontSize: 13, color: c.textMuted, height: 1.5),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 28),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: Text(
-              'Популярные вопросы',
+            const SizedBox(height: 14),
+            Text(
+              'Спросите о пастбищах',
               style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w500,
-                color: c.textMuted,
-                letterSpacing: 0.5,
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: c.textPrimary,
               ),
             ),
-          ),
-          const SizedBox(height: 10),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: _presets
-                .map((p) => _PresetChip(
-                      label: p.label,
-                      colors: c,
-                      onTap: () => _sendText(p.query),
-                    ))
-                .toList(),
-          ),
-        ],
+            const SizedBox(height: 6),
+            Text(
+              'Получите рекомендации для вашего стада\nна основе актуальных данных зон',
+              style: TextStyle(fontSize: 13, color: c.textMuted, height: 1.5),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -506,37 +464,6 @@ class _ThinkingBubbleState extends State<_ThinkingBubble>
             ...List.generate(
                 3, (i) => _Dot(ctrl: _ctrl, index: i, colors: widget.colors)),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Preset question chip
-// ---------------------------------------------------------------------------
-
-class _PresetChip extends StatelessWidget {
-  final String label;
-  final JailooColors colors;
-  final VoidCallback onTap;
-  const _PresetChip(
-      {required this.label, required this.colors, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          color: colors.surface,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: colors.border),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(fontSize: 13, color: colors.textPrimary),
         ),
       ),
     );
