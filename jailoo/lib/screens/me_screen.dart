@@ -13,16 +13,16 @@ class _Livestock {
 }
 
 const _kLivestock = [
-  _Livestock(label: 'Овцы',   count: 340),
-  _Livestock(label: 'Козы',   count: 85),
-  _Livestock(label: 'Коровы', count: 24),
-  _Livestock(label: 'Лошади', count: 18),
+  _Livestock(label: 'Кой',    count: 340),
+  _Livestock(label: 'Эчки',   count: 85),
+  _Livestock(label: 'Сыйыр',  count: 24),
+  _Livestock(label: 'Жылкы',  count: 18),
 ];
 
 const _kTotalAreaHa = 1470.0;
 const _kActivePastures = 3;
-const _kUserName = 'Кутман Асанов';
-const _kVillage = 'с. Кок-Жар, Нарынская обл.';
+const _kUserName = 'Эрлан Сыдыков';
+const _kVillage = 'Кок-Жар айылы, Нарын обл.';
 
 // ---------------------------------------------------------------------------
 
@@ -49,7 +49,7 @@ class MeScreen extends StatelessWidget {
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(20, 24, 20, 10),
                 child: Text(
-                  'Поголовье скота',
+                  'МАЛ БАШЫ',
                   style: TextStyle(
                     color: c.textMuted,
                     fontSize: 11,
@@ -79,7 +79,7 @@ class MeScreen extends StatelessWidget {
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(20, 28, 20, 10),
                 child: Text(
-                  'Пастбища',
+                  'ЖАЙЫТТАР',
                   style: TextStyle(
                     color: c.textMuted,
                     fontSize: 11,
@@ -206,21 +206,21 @@ class _StatsRow extends StatelessWidget {
           _StatChip(
             c: c,
             value: '$totalAnimals',
-            label: 'Всего голов',
+            label: 'Жалпы баш',
             icon: Icons.pets,
           ),
           const SizedBox(width: 10),
           _StatChip(
             c: c,
             value: '${_kTotalAreaHa.toStringAsFixed(0)} га',
-            label: 'Площадь',
+            label: 'Аянт',
             icon: Icons.landscape_outlined,
           ),
           const SizedBox(width: 10),
           _StatChip(
             c: c,
             value: '$_kActivePastures',
-            label: 'Пастбищ',
+            label: 'Жайыттар',
             icon: Icons.grass_outlined,
           ),
         ],
@@ -338,9 +338,9 @@ class _MyPastureData {
 }
 
 final _kMyPastures = [
-  _MyPastureData(name: 'Летнее пастбище',    areaHa: 620,  status: 'healthy'),
-  _MyPastureData(name: 'Осеннее пастбище',   areaHa: 490,  status: 'recovering'),
-  _MyPastureData(name: 'Зимнее укрытие',     areaHa: 360,  status: 'healthy'),
+  _MyPastureData(name: 'Жайкы жайыт',   areaHa: 620,  status: 'healthy'),
+  _MyPastureData(name: 'Күзгү жайыт',   areaHa: 490,  status: 'recovering'),
+  _MyPastureData(name: 'Кышкы коруу',   areaHa: 360,  status: 'healthy'),
 ];
 
 class _MyPasturesList extends StatelessWidget {
@@ -350,9 +350,9 @@ class _MyPasturesList extends StatelessWidget {
   Color _statusColor(String s) => JailooColors.statusColor(s);
   String _statusLabel(String s) {
     switch (s) {
-      case 'healthy':    return 'Хорошее';
-      case 'recovering': return 'Восстан.';
-      case 'banned':     return 'Запрет';
+      case 'healthy':    return 'Жакшы';
+      case 'recovering': return 'Калыбында';
+      case 'banned':     return 'Тыюу';
       default:           return s;
     }
   }
@@ -456,7 +456,7 @@ class _AddPastureButton extends StatelessWidget {
             const Icon(Icons.add_location_alt_outlined, color: Colors.white, size: 18),
             const SizedBox(width: 10),
             const Text(
-              'Добавить пастбище',
+              'Жайыт кошуу',
               style: TextStyle(
                 color: Colors.white,
                 fontSize: 14,
