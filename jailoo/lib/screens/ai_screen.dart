@@ -170,7 +170,7 @@ class _AiScreenState extends State<AiScreen> {
             ),
             const SizedBox(height: 14),
             Text(
-              'Спросите о пастбищах',
+              'Жайыттар жөнүндө сураңыз',
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
@@ -244,7 +244,7 @@ class _AiScreenState extends State<AiScreen> {
                 controller: _controller,
                 style: TextStyle(color: c.textPrimary, fontSize: 14),
                 decoration: InputDecoration(
-                  hintText: 'Спросите о пастбищах...',
+                    hintText: 'Жайыттар жөнүндө сураңыз...',
                   hintStyle: TextStyle(color: c.textMuted, fontSize: 14),
                   border: InputBorder.none,
                   contentPadding: const EdgeInsets.symmetric(
@@ -453,7 +453,7 @@ class _ThinkingBubbleState extends State<_ThinkingBubble>
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              'Думаю',
+              'Ойлоп...',
               style: TextStyle(
                 fontSize: 12,
                 color: widget.colors.textMuted,
