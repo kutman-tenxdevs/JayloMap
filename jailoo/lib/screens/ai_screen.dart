@@ -1,9 +1,7 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import '../data/zones.dart';
-import '../models/zone.dart';
-import '../models/herder_profile.dart';
+import '../services/ai_service.dart';
 import '../theme/colors.dart';
 
 class AiScreen extends StatefulWidget {
@@ -31,8 +29,12 @@ class _AiScreenState extends State<AiScreen>
     )..repeat(reverse: true);
   }
 
+  final _controller = TextEditingController();
+  final _aiService = AiService();
+
   @override
   void dispose() {
+    _controller.dispose();
     _scroll.dispose();
     _sparkleCtrl.dispose();
     super.dispose();
@@ -42,89 +44,31 @@ class _AiScreenState extends State<AiScreen>
   // Best zone logic
   // ---------------------------------------------------------------------------
 
-  Zone? _findBestZone(HerderProfile profile) {
-    final candidates = kZones.where((z) => z.status == 'healthy').toList();
-    if (candidates.isEmpty) return null;
-
-    // Filter by capacity (sheep units vs maxHerd)
-    final capable = candidates.where((z) => z.maxHerd >= profile.sheepUnits).toList();
-    final pool = capable.isNotEmpty ? capable : candidates;
-
-    // Sort by distance from the user's location
-    pool.sort((a, b) {
-      final da = _degDist(a.lat, a.lng);
-      final db = _degDist(b.lat, b.lng);
-      return da.compareTo(db);
-    });
-    return pool.first;
-  }
-
-  double _degDist(double lat, double lng) {
-    const uLat = 41.43, uLng = 75.99;
-    final dlat = lat - uLat, dlng = lng - uLng;
-    return sqrt(dlat * dlat + dlng * dlng);
-  }
-
-  String _kmStr(double lat, double lng) {
-    const uLat = 41.43, uLng = 75.99;
-    const R = 111.32; // km per degree at this latitude
-    final dlat = lat - uLat, dlng = lng - uLng;
-    final km = sqrt(dlat * dlat * R * R + dlng * dlng * R * R);
-    return '${km.round()} km';
-  }
-
-  Future<void> _findBestZoneAction() async {
+  Future<void> _send() async {
     if (_thinking) return;
 
-    final profile = context.read<HerderProfile>();
+    final text = _controller.text.trim();
+    if (text.isEmpty) return;
 
     setState(() {
       _thinking = true;
       _messages.add(_Message(
         role: 'user',
-        text: 'Find the best grazing zone for my herd',
+        text: text,
       ));
     });
+    _controller.clear();
     _scrollDown();
 
-    // Simulate a brief "thinking" delay for realism
-    await Future.delayed(const Duration(milliseconds: 1200));
+    final response = await _aiService.getRecommendation(text, kZones);
 
-    final zone = _findBestZone(profile);
-
-    String response;
-    if (zone == null) {
-      response =
-          'No healthy zones are currently available in your area. '
-          'All zones are either banned or recovering. '
-          'Please check back later or contact the regional office.';
-      setState(() {
-        _messages.add(_Message(role: 'ai', text: response));
-        _thinking = false;
-      });
-    } else {
-      final dist = _kmStr(zone.lat, zone.lng);
-      final capacity = zone.maxHerd >= profile.sheepUnits
-          ? '✓ Fits your herd (${profile.sheepUnits} sheep units)'
-          : '⚠ At capacity limit — reduce herd size if possible';
-
-      setState(() {
-        _messages.add(_Message(
-          role: 'ai',
-          text: '',
-          zoneCard: _ZoneRecommendation(
-            zone: zone,
-            distance: dist,
-            capacity: capacity,
-            herdNote:
-                profile.total == 0
-                    ? 'Set your herd size in the Me tab for better recommendations.'
-                    : 'Based on ${profile.total} animals (${profile.sheepUnits} sheep units).',
-          ),
-        ));
-        _thinking = false;
-      });
-    }
+    setState(() {
+      _messages.add(_Message(
+        role: 'ai',
+        text: response,
+      ));
+      _thinking = false;
+    });
 
     _scrollDown();
   }
@@ -158,7 +102,7 @@ class _AiScreenState extends State<AiScreen>
           Expanded(
             child: _messages.isEmpty ? _buildEmptyState(c) : _buildMessages(c),
           ),
-          _buildBestZoneButton(c),
+          _buildInput(c),
         ],
       ),
     );
@@ -235,9 +179,9 @@ class _AiScreenState extends State<AiScreen>
             ),
             child: Column(
               children: [
-                Text(
+                const Text(
                   '🌿',
-                  style: const TextStyle(fontSize: 40),
+                  style: TextStyle(fontSize: 40),
                 ),
                 const SizedBox(height: 12),
                 Text(
@@ -250,7 +194,7 @@ class _AiScreenState extends State<AiScreen>
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  'Press the button below to find the best available zone for your herd right now.',
+                  'Ask a question below to find the best available zone for your herd right now.',
                   style: TextStyle(
                     fontSize: 13,
                     color: c.textMuted,
@@ -293,70 +237,66 @@ class _AiScreenState extends State<AiScreen>
       itemBuilder: (context, i) {
         if (i == _messages.length) return _ThinkingBubble(c: c);
         final msg = _messages[i];
-        if (msg.zoneCard != null) return _ZoneCardBubble(rec: msg.zoneCard!, c: c);
         return _Bubble(isUser: msg.role == 'user', text: msg.text, c: c);
       },
     );
   }
 
-  Widget _buildBestZoneButton(JailooColors c) {
+  Widget _buildInput(JailooColors c) {
     return Container(
       padding: EdgeInsets.fromLTRB(
-        16, 12, 16,
+        16,
+        10,
+        16,
         MediaQuery.of(context).padding.bottom + 16,
       ),
       decoration: BoxDecoration(
-        color: c.bg,
+        color: c.surface,
         border: Border(top: BorderSide(color: c.border)),
       ),
-      child: SizedBox(
-        width: double.infinity,
-        height: 52,
-        child: FilledButton(
-          style: FilledButton.styleFrom(
-            backgroundColor: _thinking ? c.surface2 : c.accent,
-            foregroundColor: _thinking ? c.textMuted : Colors.white,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            elevation: 0,
-          ),
-          onPressed: _thinking ? null : _findBestZoneAction,
-          child: _thinking
-              ? Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: c.textMuted,
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    const Text(
-                      'Analyzing zones…',
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                )
-              : const Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.auto_awesome, size: 18),
-                    SizedBox(width: 10),
-                    Text(
-                      'Best zone for me',
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
+      child: Row(
+        children: [
+          Expanded(
+            child: TextField(
+              controller: _controller,
+              style: TextStyle(color: c.textPrimary, fontSize: 14),
+              decoration: InputDecoration(
+                hintText: 'Спросите о пастбище...',
+                hintStyle: TextStyle(color: c.textMuted, fontSize: 13),
+                filled: true,
+                fillColor: c.bg,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(24),
+                  borderSide: BorderSide(color: c.border),
                 ),
-        ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(24),
+                  borderSide: BorderSide(color: c.border),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(24),
+                  borderSide: BorderSide(color: c.accent, width: 1.5),
+                ),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+              ),
+              onSubmitted: (_) => _send(),
+            ),
+          ),
+          const SizedBox(width: 10),
+          GestureDetector(
+            onTap: _send,
+            child: Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: c.accent,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(Icons.arrow_upward, color: c.bg, size: 20),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -369,21 +309,7 @@ class _AiScreenState extends State<AiScreen>
 class _Message {
   final String role;
   final String text;
-  final _ZoneRecommendation? zoneCard;
-  const _Message({required this.role, required this.text, this.zoneCard});
-}
-
-class _ZoneRecommendation {
-  final Zone zone;
-  final String distance;
-  final String capacity;
-  final String herdNote;
-  const _ZoneRecommendation({
-    required this.zone,
-    required this.distance,
-    required this.capacity,
-    required this.herdNote,
-  });
+  const _Message({required this.role, required this.text});
 }
 
 // ---------------------------------------------------------------------------
@@ -505,186 +431,7 @@ class _ThinkingBubbleState extends State<_ThinkingBubble>
 // Zone recommendation card (rich AI response)
 // ---------------------------------------------------------------------------
 
-class _ZoneCardBubble extends StatelessWidget {
-  final _ZoneRecommendation rec;
-  final JailooColors c;
-  const _ZoneCardBubble({required this.rec, required this.c});
 
-  @override
-  Widget build(BuildContext context) {
-    final zone = rec.zone;
-    final statusColor = JailooColors.statusColor(zone.status);
-
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 10),
-        constraints: BoxConstraints(
-          maxWidth: MediaQuery.of(context).size.width * 0.9,
-        ),
-        decoration: BoxDecoration(
-          color: c.surface,
-          borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(12),
-            topRight: Radius.circular(12),
-            bottomRight: Radius.circular(12),
-            bottomLeft: Radius.circular(2),
-          ),
-          border: Border.all(color: c.border),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header
-            Padding(
-              padding: const EdgeInsets.fromLTRB(14, 12, 14, 0),
-              child: Row(
-                children: [
-                  Icon(Icons.auto_awesome, size: 14, color: c.accent),
-                  const SizedBox(width: 6),
-                  Text(
-                    'Best zone for you',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: c.accent,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 10),
-            // Zone card
-            Container(
-              margin: const EdgeInsets.symmetric(horizontal: 10),
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: statusColor.withValues(alpha: 0.07),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: statusColor.withValues(alpha: 0.25)),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        width: 8,
-                        height: 8,
-                        decoration: BoxDecoration(
-                          color: statusColor,
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        zone.nameEn,
-                        style: TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.w700,
-                          color: c.textPrimary,
-                        ),
-                      ),
-                      const Spacer(),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 3,
-                        ),
-                        decoration: BoxDecoration(
-                          color: statusColor.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          '${zone.healthScore}/100',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: statusColor,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  _ZoneInfoRow(
-                    icon: Icons.place_outlined,
-                    text: '${rec.distance} from your location',
-                    c: c,
-                  ),
-                  const SizedBox(height: 5),
-                  _ZoneInfoRow(
-                    icon: Icons.terrain_outlined,
-                    text: zone.elevation,
-                    c: c,
-                  ),
-                  const SizedBox(height: 5),
-                  _ZoneInfoRow(
-                    icon: Icons.people_outline,
-                    text: 'Up to ${zone.maxHerd} sheep · ${rec.capacity}',
-                    c: c,
-                  ),
-                  const SizedBox(height: 10),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 8,
-                    ),
-                    decoration: BoxDecoration(
-                      color: c.bg.withValues(alpha: 0.7),
-                      borderRadius: BorderRadius.circular(7),
-                      border: Border.all(color: c.border),
-                    ),
-                    child: Text(
-                      zone.seasonNote,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: c.textMuted,
-                        height: 1.4,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            // Footer note
-            Padding(
-              padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
-              child: Text(
-                rec.herdNote,
-                style: TextStyle(fontSize: 12, color: c.textMuted, height: 1.4),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _ZoneInfoRow extends StatelessWidget {
-  final IconData icon;
-  final String text;
-  final JailooColors c;
-  const _ZoneInfoRow({required this.icon, required this.text, required this.c});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Icon(icon, size: 14, color: c.textMuted),
-        const SizedBox(width: 6),
-        Expanded(
-          child: Text(
-            text,
-            style: TextStyle(fontSize: 12, color: c.textMuted),
-          ),
-        ),
-      ],
-    );
-  }
-}
 
 // ---------------------------------------------------------------------------
 // Suggestion chips (decorative, tap = coming soon toast)
@@ -701,10 +448,12 @@ class _SuggestionChip extends StatelessWidget {
       onTap: () {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text('Manual prompts coming soon — use the button below'),
+            content:
+                const Text('Manual prompts coming soon — use the button below'),
             backgroundColor: c.surface,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
             duration: const Duration(seconds: 2),
           ),
         );
