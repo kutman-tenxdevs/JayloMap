@@ -29,7 +29,7 @@ class DetailScreen extends StatelessWidget {
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          zone.nameEn,
+          zone.name,
           style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w500,
@@ -65,7 +65,7 @@ class DetailScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    '${zone.healthScore}/100 health',
+                    '${zone.healthScore}/100 саламаттык',
                     style: TextStyle(fontSize: 13, color: statusColor),
                   ),
                   const SizedBox(height: 16),
@@ -73,17 +73,17 @@ class DetailScreen extends StatelessWidget {
                   const SizedBox(height: 20),
                   Row(
                     children: [
-                      Expanded(child: DataCard(label: 'Health', value: '${zone.healthScore}', unit: '/100')),
+                      Expanded(child: DataCard(label: 'Саламаттык', value: '${zone.healthScore}', unit: '/100')),
                       const SizedBox(width: 8),
-                      Expanded(child: DataCard(label: 'Max herd', value: '${zone.maxHerd}', unit: 'sheep')),
+                      Expanded(child: DataCard(label: 'Макс. мал', value: '${zone.maxHerd}', unit: 'баш')),
                     ],
                   ),
                   const SizedBox(height: 8),
                   Row(
                     children: [
-                      Expanded(child: DataCard(label: 'Last grazed', value: '${zone.lastGrazedDaysAgo}', unit: 'days ago')),
+                      Expanded(child: DataCard(label: 'Акыркы жайыт', value: '${zone.lastGrazedDaysAgo}', unit: 'күн мурун')),
                       const SizedBox(width: 8),
-                      Expanded(child: DataCard(label: 'Safe days', value: '${zone.safeDays}', unit: 'days')),
+                      Expanded(child: DataCard(label: 'Коопсуз күн', value: '${zone.safeDays}', unit: 'күн')),
                     ],
                   ),
                   const SizedBox(height: 16),
@@ -98,10 +98,10 @@ class DetailScreen extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Details', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: c.textPrimary)),
+                        Text('Маалымат', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: c.textPrimary)),
                         const SizedBox(height: 10),
-                        _DetailRow(label: 'Area', value: '${zone.areaKm2.toStringAsFixed(0)} km²', c: c),
-                        _DetailRow(label: 'Elevation', value: zone.elevation, c: c),
+                        _DetailRow(label: 'Аянт', value: '${zone.areaKm2.toStringAsFixed(0)} км²', c: c),
+                        _DetailRow(label: 'Бийиктик', value: zone.elevation, c: c),
                         const SizedBox(height: 8),
                         Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -135,14 +135,14 @@ class DetailScreen extends StatelessWidget {
                           : () {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
-                                  content: Text('Reported: grazing at ${zone.nameEn}'),
+                                content: Text('Билдирилди: ${zone.name}'),
                                   backgroundColor: c.surface,
                                   behavior: SnackBarBehavior.floating,
                                 ),
                               );
                             },
                       child: Text(
-                        zone.status == 'banned' ? 'Zone banned' : 'Report: I\'m grazing here',
+                        zone.status == 'banned' ? 'Жабылган зона' : 'Мен бул жерде жайытта жатам',
                         style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
                       ),
                     ),
