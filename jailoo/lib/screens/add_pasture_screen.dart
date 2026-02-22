@@ -64,7 +64,7 @@ class _AddPastureScreenState extends State<AddPastureScreen> {
     final name = _nameController.text.trim();
     if (name.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Введите название пастбища')),
+        const SnackBar(content: Text('Жайыттын атын киргизиңиз')),
       );
       return;
     }
@@ -290,7 +290,7 @@ class _AddPastureScreenState extends State<AddPastureScreen> {
                             ],
                           ),
                           child: Text(
-                            'Новое пастбище',
+                            'Жаңы жайыт',
                             style: TextStyle(
                               color: c.textPrimary,
                               fontSize: 13,
@@ -318,7 +318,7 @@ class _AddPastureScreenState extends State<AddPastureScreen> {
                         border: Border.all(color: c.border),
                       ),
                       child: Text(
-                        'Тяните углы ◆ или по центру ✛ для перемещения',
+                        'Бурчтарын ◆ же борборун ✛ сүйрөңүз',
                         style: TextStyle(
                           color: c.textMuted,
                           fontSize: 10,
@@ -377,7 +377,7 @@ class _AddPastureScreenState extends State<AddPastureScreen> {
                     fontFamily: 'DMMono',
                   ),
                   decoration: InputDecoration(
-                    hintText: 'Название пастбища…',
+                    hintText: 'Жайыттын аты…',
                     hintStyle: TextStyle(
                       color: c.textMuted,
                       fontFamily: 'DMMono',
@@ -420,7 +420,7 @@ class _AddPastureScreenState extends State<AddPastureScreen> {
                             color: Colors.white, size: 18),
                         SizedBox(width: 8),
                         Text(
-                          'Сохранить пастбище',
+                          'Жайытты сактоо',
                           style: TextStyle(
                             color: Colors.white,
                             fontSize: 14,
