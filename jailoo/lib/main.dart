@@ -5,12 +5,16 @@ import 'theme/colors.dart';
 import 'theme/theme_provider.dart';
 import 'screens/map_screen.dart';
 import 'screens/ai_screen.dart';
+import 'services/app_controller.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
   runApp(
-    ChangeNotifierProvider(
-      create: (_) => ThemeProvider(),
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => ThemeProvider()),
+        ChangeNotifierProvider(create: (_) => AppController()),
+      ],
       child: const JailooApp(),
     ),
   );
@@ -77,15 +81,14 @@ class _AppShell extends StatefulWidget {
 }
 
 class _AppShellState extends State<_AppShell> {
-  int _tab = 0;
-
   @override
   Widget build(BuildContext context) {
     final c = JailooColors.of(context);
+    final tab = context.watch<AppController>().tab;
 
     return Scaffold(
       body: IndexedStack(
-        index: _tab,
+        index: tab,
         children: const [
           MapScreen(),
           AiScreen(),
@@ -96,8 +99,9 @@ class _AppShellState extends State<_AppShell> {
           border: Border(top: BorderSide(color: c.border)),
         ),
         child: NavigationBar(
-          selectedIndex: _tab,
-          onDestinationSelected: (i) => setState(() => _tab = i),
+          selectedIndex: tab,
+          onDestinationSelected: (i) =>
+              context.read<AppController>().selectTab(i),
           backgroundColor: c.bg,
           indicatorColor: c.accent.withValues(alpha: 0.12),
           height: 64,
