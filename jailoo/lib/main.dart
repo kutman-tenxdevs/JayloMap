@@ -112,7 +112,7 @@ class _AppShellState extends State<_AppShell> {
             NavigationDestination(
               icon: Icon(Icons.map_outlined, color: c.textMuted, size: 20),
               selectedIcon: Icon(Icons.map, color: c.accent, size: 20),
-              label: 'Map',
+              label: 'Карта',
             ),
             NavigationDestination(
               icon: Icon(Icons.auto_awesome_outlined, color: c.textMuted, size: 20),
@@ -122,7 +122,7 @@ class _AppShellState extends State<_AppShell> {
             NavigationDestination(
               icon: Icon(Icons.person_outline, color: c.textMuted, size: 20),
               selectedIcon: Icon(Icons.person, color: c.accent, size: 20),
-              label: 'Я',
+              label: 'Мен',
             ),
           ],
         ),
