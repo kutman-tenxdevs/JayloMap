@@ -12,7 +12,7 @@ import '../theme/theme_provider.dart';
 import '../widgets/health_bar.dart';
 import '../widgets/status_badge.dart';
 import '../widgets/data_card.dart';
-import '../services/app_controller.dart';
+
 
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});
@@ -56,25 +56,10 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
       duration: const Duration(milliseconds: 1600),
       vsync: this,
     )..repeat(reverse: true);
-    // Listen to cross-screen navigation requests from AppController
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<AppController>().addListener(_onAppController);
-    });
-  }
-
-  void _onAppController() {
-    final ctrl = context.read<AppController>();
-    final zone = ctrl.pendingRouteZone;
-    if (zone != null) {
-      ctrl.clearPendingRoute();
-      _startRoute(zone);
-    }
   }
 
   @override
   void dispose() {
-    // ignore: use_build_context_synchronously — context still valid at this point
-    context.read<AppController>().removeListener(_onAppController);
     _flyController?.dispose();
     _routeAnimController?.dispose();
     _pulseController.dispose();
