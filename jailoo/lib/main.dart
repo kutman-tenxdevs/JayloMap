@@ -28,8 +28,8 @@ class JailooApp extends StatelessWidget {
   Widget build(BuildContext context) {
     final themeProvider = context.watch<ThemeProvider>();
 
-    final lightColors = JailooColors.light;
-    final darkColors = JailooColors.dark;
+    const lightColors = JailooColors.light;
+    const darkColors = JailooColors.dark;
 
     return MaterialApp(
       title: 'Jailoo',
