@@ -2,8 +2,10 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:provider/provider.dart';
 import '../data/zones.dart';
 import '../models/zone.dart';
+import '../services/app_controller.dart';
 import '../theme/colors.dart';
 
 // ---------------------------------------------------------------------------
@@ -67,13 +69,9 @@ class _AddPastureScreenState extends State<AddPastureScreen> {
       return;
     }
     kUserPastures.add(_UserPasture(name: name, corners: List.of(_corners)));
-    Navigator.of(context).pop();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Пастбище "$name" сохранено'),
-        backgroundColor: JailooColors.light.accent,
-      ),
-    );
+    // Pop back to the shell and switch to the Map tab
+    context.read<AppController>().goToMap();
+    Navigator.of(context).popUntil((route) => route.isFirst);
   }
 
   // ── Helpers ───────────────────────────────────────────────────────────────
