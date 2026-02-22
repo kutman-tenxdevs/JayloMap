@@ -179,10 +179,6 @@ class _AiScreenState extends State<AiScreen>
             ),
             child: Column(
               children: [
-                const Text(
-                  '🌿',
-                  style: TextStyle(fontSize: 40),
-                ),
                 const SizedBox(height: 12),
                 Text(
                   'Smart Pasture Advisor',
