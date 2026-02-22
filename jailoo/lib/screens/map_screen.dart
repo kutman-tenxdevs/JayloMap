@@ -26,6 +26,10 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
 
   MapLibreMapController? _mapController;
 
+  // Selected zone panel state
+  Zone? _selectedZone;
+  bool _sheetVisible = false;
+
   // Route state
   List<LatLng> _routePoints = [];
   Zone? _activeRouteZone;
@@ -423,10 +427,10 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
     bool inside = false;
     int j = poly.length - 1;
     for (int i = 0; i < poly.length; i++) {
-      final yi = poly[i].longitude, yj = poly[j].longitude;
-      final xi = poly[i].latitude, xj = poly[j].latitude;
-      if (((yi > pt.longitude) != (yj > pt.longitude)) &&
-          (pt.latitude < (xj - xi) * (pt.longitude - yi) / (yj - yi) + xi)) {
+      final lati = poly[i].latitude, latj = poly[j].latitude;
+      final lngi = poly[i].longitude, lngj = poly[j].longitude;
+      if (((lngi > pt.longitude) != (lngj > pt.longitude)) &&
+          (pt.latitude < (latj - lati) * (pt.longitude - lngi) / (lngj - lngi) + lati)) {
         inside = !inside;
       }
       j = i;
@@ -437,28 +441,21 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   void _selectZone(Zone zone) {
     _animateCamera(zone.center, 9.5);
     _reportPressed = false;
-
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (_) => _ZoneSheet(
-        zone: zone,
-        onReport: () {
-          _reportPressed = true;
-          _startRoute(zone);
-        },
-      ),
-    ).then((_) {
-      if (mounted && !_reportPressed) {
-        _animateCamera(_overviewCenter, _overviewZoom);
-        final ctrl = _mapController;
-        if (ctrl != null) _updateHighlight(ctrl, null);
-      }
+    setState(() {
+      _selectedZone = zone;
+      _sheetVisible = true;
     });
-
     final ctrl = _mapController;
     if (ctrl != null) _updateHighlight(ctrl, zone);
+  }
+
+  void _closeSheet() {
+    setState(() { _sheetVisible = false; });
+    if (!_reportPressed) {
+      _animateCamera(_overviewCenter, _overviewZoom);
+      final ctrl = _mapController;
+      if (ctrl != null) _updateHighlight(ctrl, null);
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -609,10 +606,8 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
     final isDark = context.watch<ThemeProvider>().isDark;
     final hasRoute = _routePoints.isNotEmpty;
 
-    return Scaffold(
-      backgroundColor: c.bg,
-      body: Stack(
-        children: [
+    return Stack(
+      children: [
           MapLibreMap(
             styleString: _styleUrl(isDark),
             initialCameraPosition: const CameraPosition(
@@ -622,7 +617,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
             minMaxZoomPreference: const MinMaxZoomPreference(7.0, 14.0),
             cameraTargetBounds: CameraTargetBounds(
               LatLngBounds(
-                southwest: const LatLng(40.30, 73.50),
+                southwest: const LatLng(40.20, 73.00),
                 northeast: const LatLng(42.60, 78.20),
               ),
             ),
@@ -699,8 +694,28 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
               ),
             ),
           ),
-        ],
-      ),
+        // ── Zone detail sheet (slides up from bottom) ──────────────────────
+        AnimatedPositioned(
+          duration: const Duration(milliseconds: 320),
+          curve: Curves.easeOut,
+          left: 0, right: 0,
+          bottom: _sheetVisible ? 0 : -600,
+          child: _selectedZone == null
+              ? const SizedBox.shrink()
+              : SafeArea(
+                  top: false,
+                  child: _ZoneSheet(
+                    zone: _selectedZone!,
+                    onClose: _closeSheet,
+                    onReport: () {
+                      _reportPressed = true;
+                      _closeSheet();
+                      _startRoute(_selectedZone!);
+                    },
+                  ),
+                ),
+        ),
+      ],
     );
   }
 
@@ -813,146 +828,173 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
 
 class _ZoneSheet extends StatelessWidget {
   final Zone zone;
+  final VoidCallback onClose;
   final VoidCallback onReport;
-  const _ZoneSheet({required this.zone, required this.onReport});
+  const _ZoneSheet({required this.zone, required this.onClose, required this.onReport});
 
   @override
   Widget build(BuildContext context) {
     final c = JailooColors.of(context);
     final statusColor = JailooColors.statusColor(zone.status);
 
-    return DraggableScrollableSheet(
-      initialChildSize: 0.52,
-      minChildSize: 0.25,
-      maxChildSize: 0.85,
-      builder: (context, scrollController) {
-        return Container(
-          decoration: BoxDecoration(
-            color: c.bg,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-            border: Border(top: BorderSide(color: c.border)),
+    return Container(
+      constraints: const BoxConstraints(maxHeight: 520),
+      decoration: BoxDecoration(
+        color: c.bg,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+        border: Border(top: BorderSide(color: c.border)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.15),
+            blurRadius: 20,
+            offset: const Offset(0, -4),
           ),
-          child: ListView(
-            controller: scrollController,
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
-            children: [
-              Center(
-                child: Container(
-                  width: 36,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: c.surface2,
-                    borderRadius: BorderRadius.circular(2),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Handle + close row
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 12, 0),
+            child: Row(
+              children: [
+                Center(
+                  child: Container(
+                    width: 36,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: c.surface2,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 16),
-              Row(
+                const Spacer(),
+                GestureDetector(
+                  onTap: onClose,
+                  child: Container(
+                    width: 28, height: 28,
+                    decoration: BoxDecoration(
+                      color: c.surface2,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Icon(Icons.close, size: 14, color: c.textMuted),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Flexible(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              zone.name,
+                              style: TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.w700,
+                                color: c.textPrimary,
+                                height: 1.1,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(zone.nameEn, style: TextStyle(fontSize: 13, color: c.textMuted)),
+                          ],
+                        ),
+                      ),
+                      StatusBadge(status: zone.status),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  HealthBar(score: zone.healthScore),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(child: DataCard(label: 'Health', value: '${zone.healthScore}', unit: '/100')),
+                      const SizedBox(width: 8),
+                      Expanded(child: DataCard(label: 'Max herd', value: '${zone.maxHerd}', unit: 'sheep')),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(child: DataCard(label: 'Last grazed', value: '${zone.lastGrazedDaysAgo}', unit: 'days ago')),
+                      const SizedBox(width: 8),
+                      Expanded(child: DataCard(label: 'Safe days', value: '${zone.safeDays}', unit: 'days')),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: c.surface,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: c.border),
+                    ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          zone.name,
-                          style: TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.w700,
-                            color: c.textPrimary,
-                            height: 1.1,
-                          ),
+                          'Details',
+                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: c.textPrimary),
                         ),
-                        const SizedBox(height: 2),
-                        Text(zone.nameEn, style: TextStyle(fontSize: 13, color: c.textMuted)),
-                      ],
-                    ),
-                  ),
-                  StatusBadge(status: zone.status),
-                ],
-              ),
-              const SizedBox(height: 16),
-              HealthBar(score: zone.healthScore),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(child: DataCard(label: 'Health', value: '${zone.healthScore}', unit: '/100')),
-                  const SizedBox(width: 8),
-                  Expanded(child: DataCard(label: 'Max herd', value: '${zone.maxHerd}', unit: 'sheep')),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Expanded(child: DataCard(label: 'Last grazed', value: '${zone.lastGrazedDaysAgo}', unit: 'days ago')),
-                  const SizedBox(width: 8),
-                  Expanded(child: DataCard(label: 'Safe days', value: '${zone.safeDays}', unit: 'days')),
-                ],
-              ),
-              const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: c.surface,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: c.border),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Details',
-                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: c.textPrimary),
-                    ),
-                    const SizedBox(height: 10),
-                    _InfoRow(label: 'Area', value: '${zone.areaKm2.toStringAsFixed(0)} km²', colors: c),
-                    _InfoRow(label: 'Elevation', value: zone.elevation, colors: c),
-                    const SizedBox(height: 8),
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Icon(Icons.info_outline, size: 14, color: statusColor),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            zone.seasonNote,
-                            style: TextStyle(fontSize: 12, color: c.textMuted, height: 1.4),
-                          ),
+                        const SizedBox(height: 10),
+                        _InfoRow(label: 'Area', value: '${zone.areaKm2.toStringAsFixed(0)} km²', colors: c),
+                        _InfoRow(label: 'Elevation', value: zone.elevation, colors: c),
+                        const SizedBox(height: 8),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Icon(Icons.info_outline, size: 14, color: statusColor),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                zone.seasonNote,
+                                style: TextStyle(fontSize: 12, color: c.textMuted, height: 1.4),
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-              SizedBox(
-                height: 48,
-                child: FilledButton.icon(
-                  style: FilledButton.styleFrom(
-                    backgroundColor: zone.status == 'banned' ? c.surface2 : c.accent,
-                    foregroundColor: zone.status == 'banned' ? c.textMuted : Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                    elevation: 0,
                   ),
-                  onPressed: zone.status == 'banned'
-                      ? null
-                      : () {
-                          Navigator.pop(context);
-                          onReport();
-                        },
-                  icon: Icon(zone.status == 'banned' ? Icons.block : Icons.route, size: 16),
-                  label: Text(
-                    zone.status == 'banned' ? 'Zone banned' : "Report: I'm grazing here",
-                    style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    height: 48,
+                    width: double.infinity,
+                    child: FilledButton.icon(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: zone.status == 'banned' ? c.surface2 : c.accent,
+                        foregroundColor: zone.status == 'banned' ? c.textMuted : Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        elevation: 0,
+                      ),
+                      onPressed: zone.status == 'banned' ? null : onReport,
+                      icon: Icon(zone.status == 'banned' ? Icons.block : Icons.route, size: 16),
+                      label: Text(
+                        zone.status == 'banned' ? 'Zone banned' : "Report: I'm grazing here",
+                        style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
+                      ),
+                    ),
                   ),
-                ),
+                ],
               ),
-            ],
+            ),
           ),
-        );
-      },
+        ],
+      ),
     );
   }
 }
+
 
 class _InfoRow extends StatelessWidget {
   final String label;
