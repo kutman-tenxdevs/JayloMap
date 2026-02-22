@@ -5,6 +5,7 @@ import 'theme/colors.dart';
 import 'theme/theme_provider.dart';
 import 'screens/map_screen.dart';
 import 'screens/ai_screen.dart';
+import 'screens/me_screen.dart';
 import 'services/app_controller.dart';
 
 void main() {
@@ -92,6 +93,7 @@ class _AppShellState extends State<_AppShell> {
         children: const [
           MapScreen(),
           AiScreen(),
+          MeScreen(),
         ],
       ),
       bottomNavigationBar: Container(
@@ -116,6 +118,11 @@ class _AppShellState extends State<_AppShell> {
               icon: Icon(Icons.auto_awesome_outlined, color: c.textMuted, size: 20),
               selectedIcon: Icon(Icons.auto_awesome, color: c.accent, size: 20),
               label: 'AI',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.person_outline, color: c.textMuted, size: 20),
+              selectedIcon: Icon(Icons.person, color: c.accent, size: 20),
+              label: 'Я',
             ),
           ],
         ),
