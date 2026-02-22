@@ -84,8 +84,7 @@ class _AppShellState extends State<_AppShell> {
   @override
   Widget build(BuildContext context) {
     final c = JailooColors.of(context);
-    final ctrl = context.watch<AppController>();
-    final tab = ctrl.tab;
+    final tab = context.watch<AppController>().tab;
 
     return Scaffold(
       body: IndexedStack(
@@ -101,15 +100,8 @@ class _AppShellState extends State<_AppShell> {
         ),
         child: NavigationBar(
           selectedIndex: tab,
-          onDestinationSelected: (i) => context.read<AppController>().goToMap()..then((_) {}) == null
-              ? null
-              : context.read<AppController>()._tab == i
-                  ? null
-                  : context.read<AppController>().goToMap(),
-          backgroundColor: c.bg,
-          indicatorColor: c.accent.withValues(alpha: 0.12),
-          height: 64,
-          labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+          onDestinationSelected: (i) =>
+              context.read<AppController>().selectTab(i),
           backgroundColor: c.bg,
           indicatorColor: c.accent.withValues(alpha: 0.12),
           height: 64,
