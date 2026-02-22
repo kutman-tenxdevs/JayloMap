@@ -221,7 +221,7 @@ final List<Zone> kZones = [
     boundary: _kyzart,
     areaKm2: 1180,
     elevation: '2400–3200 m',
-    seasonNote: 'Closed for restoration. Overgrazing near Kyzart pass.',
+    seasonNote: 'Жабылган. Кызарт ашуусунун жанында ашыкча жайылган.',
   ),
   Zone(
     id: 2,
@@ -237,7 +237,7 @@ final List<Zone> kZones = [
     boundary: _saryBulak,
     areaKm2: 950,
     elevation: '2800–3500 m',
-    seasonNote: 'Best Jun–Sep. Spring-fed alpine meadow.',
+    seasonNote: 'Мыкты маал: Мам–Сен. Булактан суусаган альп чалгыны.',
   ),
   Zone(
     id: 3,
@@ -253,7 +253,7 @@ final List<Zone> kZones = [
     boundary: _kurtka,
     areaKm2: 1350,
     elevation: '1700–2900 m',
-    seasonNote: 'Valley floor recovering. Use upper slopes only.',
+    seasonNote: 'Өрөөндүн түбү калыбына келүүдө. Жогорку бөктөрлөрдү гана пайдаланыңыз.',
   ),
   Zone(
     id: 4,
@@ -269,7 +269,7 @@ final List<Zone> kZones = [
     boundary: _onArcha,
     areaKm2: 870,
     elevation: '2200–3400 m',
-    seasonNote: 'Limited capacity. Juniper groves on east slopes fragile.',
+    seasonNote: 'Жүктөмү чектелген. Чыгыш капталындагы арча токойлору назик.',
   ),
   Zone(
     id: 5,
@@ -285,7 +285,7 @@ final List<Zone> kZones = [
     boundary: _chaek,
     areaKm2: 1420,
     elevation: '1600–3100 m',
-    seasonNote: 'Closed. Soil erosion along Chaek river basin.',
+    seasonNote: 'Жабылган. Чаек дарыясынын бойунда топурак эрозиясы.',
   ),
   Zone(
     id: 6,
@@ -301,7 +301,7 @@ final List<Zone> kZones = [
     boundary: _ekiNaryn,
     areaKm2: 1680,
     elevation: '2000–3600 m',
-    seasonNote: 'Wide open range along two river branches.',
+    seasonNote: 'Эки дарыя тармагы боюнда кеңири ачык жайыт.',
   ),
   Zone(
     id: 7,
@@ -317,7 +317,7 @@ final List<Zone> kZones = [
     boundary: _dostuk,
     areaKm2: 920,
     elevation: '1800–2800 m',
-    seasonNote: 'Near settlement. Heavy recent use. Rotate sectors.',
+    seasonNote: 'Айылга жакын. Жакында катуу колдонулган. Секторлорду алмаштырыңыз.',
   ),
   Zone(
     id: 8,
@@ -333,7 +333,7 @@ final List<Zone> kZones = [
     boundary: _akTam,
     areaKm2: 1340,
     elevation: '2100–3800 m',
-    seasonNote: 'Remote eastern pasture. Access via mountain road.',
+    seasonNote: 'Алыскы чыгыш жайыты. Тоо жолу аркылуу кирүүгө болот.',
   ),
 
   // ── 5 new zones ───────────────────────────────────────────────────────────
@@ -351,7 +351,7 @@ final List<Zone> kZones = [
     boundary: _zhumgal,
     areaKm2: 2100,
     elevation: '2200–3100 m',
-    seasonNote: 'Large open plateau. Prime summer range May–Oct.',
+    seasonNote: 'Чоң ачык жазира. Мыкты жайкы жайыт: Май–Окт.',
   ),
   Zone(
     id: 10,
@@ -367,7 +367,7 @@ final List<Zone> kZones = [
     boundary: _narynToo,
     areaKm2: 1560,
     elevation: '2600–3700 m',
-    seasonNote: 'High ridge pastures. Some slope erosion noted.',
+    seasonNote: 'Бийик кырка жайыттары. Бөктөрлөрдө бир аз эрозия байкалат.',
   ),
   Zone(
     id: 11,
@@ -383,7 +383,7 @@ final List<Zone> kZones = [
     boundary: _akSakal,
     areaKm2: 1790,
     elevation: '1900–2800 m',
-    seasonNote: 'Southern lowland meadows. Year-round light grazing possible.',
+    seasonNote: 'Түштүктүн ойдуң чалгындары. Жыл бою жеңил жайыттоо мүмкүн.',
   ),
   Zone(
     id: 12,
@@ -399,7 +399,7 @@ final List<Zone> kZones = [
     boundary: _kokTash,
     areaKm2: 1650,
     elevation: '1800–3000 m',
-    seasonNote: 'Closed. Severe degradation, reseeding program active.',
+    seasonNote: 'Жабылган. Күчтүү деградация, чөп себүү программасы жүрүп жатат.',
   ),
   Zone(
     id: 13,
@@ -415,7 +415,7 @@ final List<Zone> kZones = [
     boundary: _moldoToo,
     areaKm2: 2050,
     elevation: '2300–4000 m',
-    seasonNote: 'Highest range. Accessible Jul–Aug only. Snow risk.',
+    seasonNote: 'Эң бийик жайыт. Жул–Авг айларында гана жетүүгө болот. Кар коркунучу бар.',
   ),
 ];
 
