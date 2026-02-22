@@ -618,15 +618,15 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
         children: [
           _LegendItem(
               color: JailooColors.healthy,
-              label: 'Safe',
+              label: 'Жакшы',
               textColor: c.textMuted),
           _LegendItem(
               color: JailooColors.recovering,
-              label: 'Recovering',
+              label: 'Калыбында',
               textColor: c.textMuted),
           _LegendItem(
               color: JailooColors.banned,
-              label: 'Banned',
+              label: 'Тыюу',
               textColor: c.textMuted),
         ],
       ),
@@ -651,7 +651,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
           ),
           const SizedBox(width: 10),
           Text(
-            'Building route…',
+            'Маршрут түзүлүүдө…',
             style: TextStyle(fontSize: 13, color: c.textMuted),
           ),
         ],
@@ -687,7 +687,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Route to ${zone.nameEn}',
+                  'Маршрут: ${zone.name}',
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
@@ -791,15 +791,15 @@ class _ZoneSheet extends StatelessWidget {
                 children: [
                   Expanded(
                       child: DataCard(
-                          label: 'Health',
+                          label: 'Саламаттык',
                           value: '${zone.healthScore}',
                           unit: '/100')),
                   const SizedBox(width: 8),
                   Expanded(
                       child: DataCard(
-                          label: 'Max herd',
+                          label: 'Макс. мал',
                           value: '${zone.maxHerd}',
-                          unit: 'sheep')),
+                          unit: 'баш')),
                 ],
               ),
               const SizedBox(height: 8),
@@ -807,15 +807,15 @@ class _ZoneSheet extends StatelessWidget {
                 children: [
                   Expanded(
                       child: DataCard(
-                          label: 'Last grazed',
+                          label: 'Акыркы жайыт',
                           value: '${zone.lastGrazedDaysAgo}',
-                          unit: 'days ago')),
+                          unit: 'күн мурун')),
                   const SizedBox(width: 8),
                   Expanded(
                       child: DataCard(
-                          label: 'Safe days',
+                          label: 'Коопсуз күн',
                           value: '${zone.safeDays}',
-                          unit: 'days')),
+                          unit: 'күн')),
                 ],
               ),
               const SizedBox(height: 16),
@@ -830,7 +830,7 @@ class _ZoneSheet extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Details',
+                      'Маалымат',
                       style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
@@ -838,11 +838,11 @@ class _ZoneSheet extends StatelessWidget {
                     ),
                     const SizedBox(height: 10),
                     _InfoRow(
-                        label: 'Area',
-                        value: '${zone.areaKm2.toStringAsFixed(0)} km²',
+                        label: 'Аянт',
+                        value: '${zone.areaKm2.toStringAsFixed(0)} км²',
                         colors: c),
                     _InfoRow(
-                        label: 'Elevation', value: zone.elevation, colors: c),
+                        label: 'Бийиктик', value: zone.elevation, colors: c),
                     const SizedBox(height: 8),
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -885,8 +885,8 @@ class _ZoneSheet extends StatelessWidget {
                       size: 16),
                   label: Text(
                     zone.status == 'banned'
-                        ? 'Zone banned'
-                        : 'Report: I\'m grazing here',
+                        ? 'Жабылган зона'
+                        : 'Мен бул жерде жайытта жатам',
                     style: const TextStyle(
                         fontWeight: FontWeight.w500, fontSize: 14),
                   ),
