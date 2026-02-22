@@ -230,13 +230,7 @@ class _ZoneMapState extends State<_ZoneMap> {
       LineLayerProperties(lineColor: colorHex, lineWidth: 2.0, lineCap: 'round', lineJoin: 'round'),
     );
 
-    await ctrl.addCircle(CircleOptions(
-      geometry: LatLng(zone.lat, zone.lng),
-      circleRadius: 5,
-      circleColor: colorHex,
-      circleStrokeColor: '#FFFFFF',
-      circleStrokeWidth: 1.5,
-    ));
+    // Circle dot removed — zone boundary fill/border is sufficient
   }
 
   @override
