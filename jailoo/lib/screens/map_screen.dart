@@ -361,41 +361,15 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
         CameraPosition(
           target: target,
           zoom: zoom,
-          tilt: tilt ?? _currentPitch,
-          bearing: bearing ?? _currentBearing,
         ),
       ),
       duration: const Duration(milliseconds: 700),
     );
   }
 
-  void _onCameraIdle() {
-    // Track internally so style-reload can restore tilt/bearing.
-    // No setState — these are not displayed in the UI.
-    final cam = _mapController?.cameraPosition;
-    if (cam != null) {
-      _currentPitch = cam.tilt;
-      _currentBearing = cam.bearing;
-    }
-  }
-
-  // ---------------------------------------------------------------------------
-  // 3D toggle
-  // ---------------------------------------------------------------------------
-
-  void _toggle3D() {
-    setState(() => _is3D = !_is3D);
-    // Style will reload (styleString changed) → _onStyleLoaded handles camera
-    _currentPitch = _is3D ? 68.0 : 0.0;
-    _currentBearing = _is3D ? -20.0 : 0.0;
-  }
+  void _onCameraIdle() {}
 
   void _resetCamera() {
-    setState(() {
-      _is3D = false;
-      _currentPitch = 0;
-      _currentBearing = 0;
-    });
     _animateCamera(_overviewCenter, _overviewZoom, tilt: 0, bearing: 0);
   }
 
@@ -976,12 +950,10 @@ class _MapButton extends StatelessWidget {
   final JailooColors colors;
   final VoidCallback onTap;
   final Widget child;
-  final bool active;
   const _MapButton({
     required this.colors,
     required this.onTap,
     required this.child,
-    this.active = false,
   });
 
   @override
@@ -993,12 +965,11 @@ class _MapButton extends StatelessWidget {
         width: 36,
         height: 36,
         decoration: BoxDecoration(
-          color: active
-              ? colors.accent.withValues(alpha: 0.12)
-              : colors.bg.withValues(alpha: 0.92),
+          color: colors.bg.withValues(alpha: 0.92),
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
-            color: active ? colors.accent.withValues(alpha: 0.45) : colors.border,
+            color: colors.border,
+            width: 0.5,
           ),
         ),
         child: Center(child: child),
