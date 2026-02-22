@@ -26,11 +26,6 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
 
   MapLibreMapController? _mapController;
 
-  // 3D state — tilt/bearing targets applied after style load
-  bool _is3D = false;
-  double _currentPitch = 0;
-  double _currentBearing = 0;
-
   // Route state
   List<LatLng> _routePoints = [];
   Zone? _activeRouteZone;
@@ -94,20 +89,6 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
     if (_routePoints.isNotEmpty) await _addRouteToMap(ctrl, _routePoints);
     if (_activeRouteZone != null) await _addDestinationMarker(ctrl, _activeRouteZone!);
 
-    // Restore tilt/bearing after style reload
-    final cam = ctrl.cameraPosition;
-    if (cam != null && (_currentPitch != 0 || _currentBearing != 0)) {
-      await ctrl.animateCamera(
-        CameraUpdate.newCameraPosition(
-          CameraPosition(
-            target: cam.target,
-            zoom: cam.zoom,
-            tilt: _currentPitch,
-            bearing: _currentBearing,
-          ),
-        ),
-      );
-    }
   }
 
   // ---------------------------------------------------------------------------
@@ -606,10 +587,6 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   // ---------------------------------------------------------------------------
 
   String _styleUrl(bool isDark) {
-    if (_is3D) {
-      // Liberty style has 3D building extrusions and richer terrain data
-      return 'https://tiles.openfreemap.org/styles/liberty';
-    }
     return isDark
         ? 'https://tiles.openfreemap.org/styles/liberty'
         : 'https://tiles.openfreemap.org/styles/bright';
@@ -635,7 +612,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
               target: _overviewCenter,
               zoom: _overviewZoom,
             ),
-            minMaxZoomPreference: const MinMaxZoomPreference(8.5, 15.0),
+            minMaxZoomPreference: const MinMaxZoomPreference(9.5, 15.0),
             cameraTargetBounds: CameraTargetBounds(
               LatLngBounds(
                 southwest: const LatLng(41.05, 75.25),
@@ -662,22 +639,6 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                 children: [
                   _HeaderPill(c: c),
                   const Spacer(),
-                  // 3D toggle
-                  _MapButton(
-                    colors: c,
-                    active: _is3D,
-                    onTap: _toggle3D,
-                    child: Text(
-                      '3D',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        color: _is3D ? c.accent : c.textMuted,
-                        letterSpacing: 0.5,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
                   // Reset camera
                   _MapButton(
                     colors: c,
