@@ -44,9 +44,6 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   String _routeDistance = '';
   bool _fetchingRoute = false;
 
-  // 3D terrain toggle
-  bool _is3D = false;
-
   bool _reportPressed = false;
 
   @override
@@ -209,8 +206,10 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
       final pts = List.generate(steps + 1, (i) {
         final t = i / steps;
         return LatLng(
-          kUserLocation.latitude + t * (zone.center.latitude - kUserLocation.latitude),
-          kUserLocation.longitude + t * (zone.center.longitude - kUserLocation.longitude),
+          kUserLocation.latitude +
+              t * (zone.center.latitude - kUserLocation.latitude),
+          kUserLocation.longitude +
+              t * (zone.center.longitude - kUserLocation.longitude),
         );
       });
       _setRoute(
@@ -288,12 +287,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   // Tile URL
   // ---------------------------------------------------------------------------
 
-  String _tileUrl(bool isDark, bool is3D) {
-    if (is3D) {
-      // OpenTopoMap — contours, elevation, peaks, glaciers, rivers.
-      // Equivalent to OpenFreeMap "liberty" style for terrain context.
-      return 'https://tile.opentopomap.org/{z}/{x}/{y}.png';
-    }
+  String _tileUrl(bool isDark) {
     if (isDark) {
       return 'https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png';
     }
@@ -332,7 +326,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
             ),
             children: [
               TileLayer(
-                urlTemplate: _tileUrl(isDark, _is3D),
+                urlTemplate: _tileUrl(isDark),
                 subdomains: const ['a', 'b', 'c', 'd'],
                 userAgentPackageName: 'com.jailoo.app',
                 maxZoom: 17,
@@ -344,7 +338,8 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                   animation: _routeAnimController!,
                   builder: (_, __) {
                     final progress = _routeCurve?.value ?? 1.0;
-                    final count = max(2, (_routePoints.length * progress).round());
+                    final count =
+                        max(2, (_routePoints.length * progress).round());
                     final pts = _routePoints.sublist(0, count);
                     return PolylineLayer(
                       polylines: [
@@ -447,8 +442,8 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                       child: AnimatedBuilder(
                         animation: _routeAnimController!,
                         builder: (_, __) {
-                          final scale = Curves.elasticOut
-                              .transform((_routeCurve?.value ?? 1.0).clamp(0.0, 1.0));
+                          final scale = Curves.elasticOut.transform(
+                              (_routeCurve?.value ?? 1.0).clamp(0.0, 1.0));
                           return Transform.scale(
                             scale: scale,
                             child: Container(
@@ -457,7 +452,8 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                               decoration: BoxDecoration(
                                 color: c.accent,
                                 shape: BoxShape.circle,
-                                border: Border.all(color: Colors.white, width: 2.5),
+                                border:
+                                    Border.all(color: Colors.white, width: 2.5),
                                 boxShadow: [
                                   BoxShadow(
                                     color: c.accent.withValues(alpha: 0.5),
@@ -485,7 +481,8 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                     child: AnimatedBuilder(
                       animation: _pulseController,
                       builder: (_, __) {
-                        final pulse = Curves.easeInOut.transform(_pulseController.value);
+                        final pulse =
+                            Curves.easeInOut.transform(_pulseController.value);
                         return Stack(
                           alignment: Alignment.center,
                           children: [
@@ -495,9 +492,11 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                               height: 28 + pulse * 10,
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
-                                color: c.accent.withValues(alpha: 0.12 - pulse * 0.09),
+                                color: c.accent
+                                    .withValues(alpha: 0.12 - pulse * 0.09),
                                 border: Border.all(
-                                  color: c.accent.withValues(alpha: 0.3 - pulse * 0.2),
+                                  color: c.accent
+                                      .withValues(alpha: 0.3 - pulse * 0.2),
                                   width: 1,
                                 ),
                               ),
@@ -549,21 +548,6 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                   const Spacer(),
                   _MapButton(
                     colors: c,
-                    active: _is3D,
-                    onTap: () => setState(() => _is3D = !_is3D),
-                    child: Text(
-                      '3D',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        color: _is3D ? c.accent : c.textMuted,
-                        letterSpacing: 0.5,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  _MapButton(
-                    colors: c,
                     onTap: () => context.read<ThemeProvider>().toggle(),
                     child: Icon(
                       context.watch<ThemeProvider>().isDark
@@ -591,13 +575,18 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                   position: Tween(
                     begin: const Offset(0, 0.35),
                     end: Offset.zero,
-                  ).animate(CurvedAnimation(parent: anim, curve: Curves.easeOut)),
+                  ).animate(
+                      CurvedAnimation(parent: anim, curve: Curves.easeOut)),
                   child: child,
                 ),
               ),
               child: KeyedSubtree(
                 key: ValueKey(
-                  _fetchingRoute ? 'loading' : hasRoute ? 'route' : 'legend',
+                  _fetchingRoute
+                      ? 'loading'
+                      : hasRoute
+                          ? 'route'
+                          : 'legend',
                 ),
                 child: _fetchingRoute
                     ? _buildRouteLoading(c)
@@ -627,9 +616,18 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
-          _LegendItem(color: JailooColors.healthy, label: 'Safe', textColor: c.textMuted),
-          _LegendItem(color: JailooColors.recovering, label: 'Recovering', textColor: c.textMuted),
-          _LegendItem(color: JailooColors.banned, label: 'Banned', textColor: c.textMuted),
+          _LegendItem(
+              color: JailooColors.healthy,
+              label: 'Safe',
+              textColor: c.textMuted),
+          _LegendItem(
+              color: JailooColors.recovering,
+              label: 'Recovering',
+              textColor: c.textMuted),
+          _LegendItem(
+              color: JailooColors.banned,
+              label: 'Banned',
+              textColor: c.textMuted),
         ],
       ),
     );
@@ -778,7 +776,8 @@ class _ZoneSheet extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(height: 2),
-                        Text(zone.nameEn, style: TextStyle(fontSize: 13, color: c.textMuted)),
+                        Text(zone.nameEn,
+                            style: TextStyle(fontSize: 13, color: c.textMuted)),
                       ],
                     ),
                   ),
@@ -790,17 +789,33 @@ class _ZoneSheet extends StatelessWidget {
               const SizedBox(height: 16),
               Row(
                 children: [
-                  Expanded(child: DataCard(label: 'Health', value: '${zone.healthScore}', unit: '/100')),
+                  Expanded(
+                      child: DataCard(
+                          label: 'Health',
+                          value: '${zone.healthScore}',
+                          unit: '/100')),
                   const SizedBox(width: 8),
-                  Expanded(child: DataCard(label: 'Max herd', value: '${zone.maxHerd}', unit: 'sheep')),
+                  Expanded(
+                      child: DataCard(
+                          label: 'Max herd',
+                          value: '${zone.maxHerd}',
+                          unit: 'sheep')),
                 ],
               ),
               const SizedBox(height: 8),
               Row(
                 children: [
-                  Expanded(child: DataCard(label: 'Last grazed', value: '${zone.lastGrazedDaysAgo}', unit: 'days ago')),
+                  Expanded(
+                      child: DataCard(
+                          label: 'Last grazed',
+                          value: '${zone.lastGrazedDaysAgo}',
+                          unit: 'days ago')),
                   const SizedBox(width: 8),
-                  Expanded(child: DataCard(label: 'Safe days', value: '${zone.safeDays}', unit: 'days')),
+                  Expanded(
+                      child: DataCard(
+                          label: 'Safe days',
+                          value: '${zone.safeDays}',
+                          unit: 'days')),
                 ],
               ),
               const SizedBox(height: 16),
@@ -816,11 +831,18 @@ class _ZoneSheet extends StatelessWidget {
                   children: [
                     Text(
                       'Details',
-                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: c.textPrimary),
+                      style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: c.textPrimary),
                     ),
                     const SizedBox(height: 10),
-                    _InfoRow(label: 'Area', value: '${zone.areaKm2.toStringAsFixed(0)} km²', colors: c),
-                    _InfoRow(label: 'Elevation', value: zone.elevation, colors: c),
+                    _InfoRow(
+                        label: 'Area',
+                        value: '${zone.areaKm2.toStringAsFixed(0)} km²',
+                        colors: c),
+                    _InfoRow(
+                        label: 'Elevation', value: zone.elevation, colors: c),
                     const SizedBox(height: 8),
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -830,7 +852,8 @@ class _ZoneSheet extends StatelessWidget {
                         Expanded(
                           child: Text(
                             zone.seasonNote,
-                            style: TextStyle(fontSize: 12, color: c.textMuted, height: 1.4),
+                            style: TextStyle(
+                                fontSize: 12, color: c.textMuted, height: 1.4),
                           ),
                         ),
                       ],
@@ -843,9 +866,12 @@ class _ZoneSheet extends StatelessWidget {
                 height: 48,
                 child: FilledButton.icon(
                   style: FilledButton.styleFrom(
-                    backgroundColor: zone.status == 'banned' ? c.surface2 : c.accent,
-                    foregroundColor: zone.status == 'banned' ? c.textMuted : Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    backgroundColor:
+                        zone.status == 'banned' ? c.surface2 : c.accent,
+                    foregroundColor:
+                        zone.status == 'banned' ? c.textMuted : Colors.white,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8)),
                     elevation: 0,
                   ),
                   onPressed: zone.status == 'banned'
@@ -854,10 +880,15 @@ class _ZoneSheet extends StatelessWidget {
                           Navigator.pop(context);
                           onReport();
                         },
-                  icon: Icon(zone.status == 'banned' ? Icons.block : Icons.route, size: 16),
+                  icon: Icon(
+                      zone.status == 'banned' ? Icons.block : Icons.route,
+                      size: 16),
                   label: Text(
-                    zone.status == 'banned' ? 'Zone banned' : 'Report: I\'m grazing here',
-                    style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
+                    zone.status == 'banned'
+                        ? 'Zone banned'
+                        : 'Report: I\'m grazing here',
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w500, fontSize: 14),
                   ),
                 ),
               ),
@@ -873,7 +904,8 @@ class _InfoRow extends StatelessWidget {
   final String label;
   final String value;
   final JailooColors colors;
-  const _InfoRow({required this.label, required this.value, required this.colors});
+  const _InfoRow(
+      {required this.label, required this.value, required this.colors});
 
   @override
   Widget build(BuildContext context) {
@@ -883,7 +915,11 @@ class _InfoRow extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(label, style: TextStyle(fontSize: 12, color: colors.textMuted)),
-          Text(value, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: colors.textPrimary)),
+          Text(value,
+              style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  color: colors.textPrimary)),
         ],
       ),
     );
@@ -920,7 +956,8 @@ class _MapButton extends StatelessWidget {
               : colors.bg.withValues(alpha: 0.92),
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
-            color: active ? colors.accent.withValues(alpha: 0.45) : colors.border,
+            color:
+                active ? colors.accent.withValues(alpha: 0.45) : colors.border,
           ),
         ),
         child: Center(child: child),
@@ -979,7 +1016,8 @@ class _LegendItem extends StatelessWidget {
   final Color color;
   final String label;
   final Color textColor;
-  const _LegendItem({required this.color, required this.label, required this.textColor});
+  const _LegendItem(
+      {required this.color, required this.label, required this.textColor});
 
   @override
   Widget build(BuildContext context) {
