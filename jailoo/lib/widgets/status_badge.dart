@@ -7,9 +7,9 @@ class StatusBadge extends StatelessWidget {
 
   String get _label {
     switch (status) {
-      case 'healthy':    return 'Safe';
-      case 'recovering': return 'Recovering';
-      case 'banned':     return 'Banned';
+      case 'healthy':    return 'Жакшы';
+      case 'recovering': return 'Калыбында';
+      case 'banned':     return 'Тыюу';
       default:           return status;
     }
   }
