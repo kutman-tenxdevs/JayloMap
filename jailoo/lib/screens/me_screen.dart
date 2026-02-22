@@ -148,10 +148,6 @@ class _ProfileAppBar extends StatelessWidget {
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Text(
-                              '🐑 ',
-                              style: TextStyle(fontSize: 14),
-                            ),
                             Text(
                               '${profile.total}',
                               style: TextStyle(
@@ -224,73 +220,72 @@ class _HerdGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final animals = [
-      _Animal('sheep', '🐑', 'Sheep', profile.sheep),
-      _Animal('goats', '🐐', 'Goats', profile.goats),
-      _Animal('horses', '🐴', 'Horses', profile.horses),
-      _Animal('cattle', '🐄', 'Cattle', profile.cattle),
+      _Animal('sheep', 'Sheep', profile.sheep),
+      _Animal('goats', 'Goats', profile.goats),
+      _Animal('horses', 'Horses', profile.horses),
+      _Animal('cattle', 'Cattle', profile.cattle),
     ];
 
-    return GridView.count(
-      crossAxisCount: 2,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      crossAxisSpacing: 10,
-      mainAxisSpacing: 10,
-      childAspectRatio: 1.35,
-      children: animals
-          .map((a) => _AnimalCard(animal: a, profile: profile, c: c))
-          .toList(),
-    );
-  }
-}
-
-class _Animal {
-  final String key;
-  final String emoji;
-  final String label;
-  final int count;
-  const _Animal(this.key, this.emoji, this.label, this.count);
-}
-
-class _AnimalCard extends StatelessWidget {
-  final _Animal animal;
-  final HerderProfile profile;
-  final JailooColors c;
-  const _AnimalCard({
-    required this.animal,
-    required this.profile,
-    required this.c,
-  });
-
-  @override
-  Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
       decoration: BoxDecoration(
         color: c.surface,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: c.border),
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        children: animals.indexed.map((entry) {
+          final isLast = entry.$1 == animals.length - 1;
+          return _AnimalRow(
+            animal: entry.$2,
+            profile: profile,
+            c: c,
+            isLast: isLast,
+          );
+        }).toList(),
+      ),
+    );
+  }
+}
+
+class _Animal {
+  final String key;
+  final String label;
+  final int count;
+  const _Animal(this.key, this.label, this.count);
+}
+
+class _AnimalRow extends StatelessWidget {
+  final _Animal animal;
+  final HerderProfile profile;
+  final JailooColors c;
+  final bool isLast;
+  
+  const _AnimalRow({
+    required this.animal,
+    required this.profile,
+    required this.c,
+    required this.isLast,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        border: isLast ? null : Border(bottom: BorderSide(color: c.border)),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Row(
-            children: [
-              Text(animal.emoji, style: const TextStyle(fontSize: 22)),
-              const SizedBox(width: 8),
-              Text(
-                animal.label,
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                  color: c.textMuted,
-                ),
-              ),
-            ],
+          Text(
+            animal.label,
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+              color: c.textPrimary,
+            ),
           ),
-          const Spacer(),
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               _CounterButton(
                 icon: Icons.remove,
@@ -300,12 +295,16 @@ class _AnimalCard extends StatelessWidget {
                 },
                 c: c,
               ),
-              Text(
-                '${animal.count}',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.w700,
-                  color: c.textPrimary,
+              SizedBox(
+                width: 44,
+                child: Text(
+                  '${animal.count}',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                    color: c.textPrimary,
+                  ),
                 ),
               ),
               _CounterButton(
@@ -380,9 +379,9 @@ class _HerdSummaryCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: c.accent.withValues(alpha: 0.06),
+        color: c.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: c.accent.withValues(alpha: 0.2)),
+        border: Border.all(color: c.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -440,7 +439,7 @@ class _SummaryPill extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          color: c.bg.withValues(alpha: 0.8),
+          color: c.surface2,
           borderRadius: BorderRadius.circular(8),
           border: Border.all(color: c.border),
         ),
@@ -483,9 +482,9 @@ class _SeasonCardState extends State<_SeasonCard> {
   int _selected = 1; // 0=Spring 1=Summer 2=Autumn
 
   static const _seasons = [
-    ('Spring', '🌱', 'Apr–May · Low elevation'),
-    ('Summer', '☀️', 'Jun–Sep · Alpine meadows'),
-    ('Autumn', '🍂', 'Sep–Oct · Valley pastures'),
+    ('Spring', 'Apr–May · Low elevation'),
+    ('Summer', 'Jun–Sep · Alpine meadows'),
+    ('Autumn', 'Sep–Oct · Valley pastures'),
   ];
 
   @override
@@ -524,8 +523,6 @@ class _SeasonCardState extends State<_SeasonCard> {
               ),
               child: Row(
                 children: [
-                  Text(s.$2, style: const TextStyle(fontSize: 20)),
-                  const SizedBox(width: 12),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -533,13 +530,13 @@ class _SeasonCardState extends State<_SeasonCard> {
                         Text(
                           s.$1,
                           style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
                             color: selected ? c.accent : c.textPrimary,
                           ),
                         ),
                         Text(
-                          s.$3,
+                          s.$2,
                           style: TextStyle(fontSize: 12, color: c.textMuted),
                         ),
                       ],
