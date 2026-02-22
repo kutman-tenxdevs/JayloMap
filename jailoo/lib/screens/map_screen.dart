@@ -21,8 +21,8 @@ class MapScreen extends StatefulWidget {
 }
 
 class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
-  static const _overviewCenter = LatLng(41.42, 75.88);
-  static const _overviewZoom = 9.6;
+  static const _overviewCenter = LatLng(41.44, 75.85);
+  static const _overviewZoom = 7.8;
 
   MapLibreMapController? _mapController;
 
@@ -435,7 +435,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   }
 
   void _selectZone(Zone zone) {
-    _animateCamera(zone.center, 12.5);
+    _animateCamera(zone.center, 9.5);
     _reportPressed = false;
 
     showModalBottomSheet(
@@ -474,7 +474,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
 
     final midLat = (kUserLocation.latitude + zone.center.latitude) / 2;
     final midLng = (kUserLocation.longitude + zone.center.longitude) / 2;
-    _animateCamera(LatLng(midLat - 0.04, midLng), 10.2);
+    _animateCamera(LatLng(midLat - 0.08, midLng), 8.5);
 
     try {
       final url = Uri.parse(
@@ -619,11 +619,11 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
               target: _overviewCenter,
               zoom: _overviewZoom,
             ),
-            minMaxZoomPreference: const MinMaxZoomPreference(9.5, 15.0),
+            minMaxZoomPreference: const MinMaxZoomPreference(7.0, 14.0),
             cameraTargetBounds: CameraTargetBounds(
               LatLngBounds(
-                southwest: const LatLng(41.05, 75.25),
-                northeast: const LatLng(41.80, 76.55),
+                southwest: const LatLng(40.30, 73.50),
+                northeast: const LatLng(42.60, 78.20),
               ),
             ),
             onMapCreated: _onMapCreated,
