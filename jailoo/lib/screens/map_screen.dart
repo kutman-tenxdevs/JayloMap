@@ -119,12 +119,13 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
         },
       });
 
-      // Center point feature for labels/markers
+      // Center point feature for labels
       features.add({
         'type': 'Feature',
         'id': '${zone.id}-center',
         'properties': {
           ...props,
+          'name': zone.nameEn,
           'isCenter': true,
         },
         'geometry': {
@@ -148,7 +149,6 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
       'banned': '#EF4444', // Crimson
     }.entries) {
       final polyFilter = ['all', ['==', 'status', entry.key], ['!=', 'isCenter', true]];
-      final pointFilter = ['all', ['==', 'status', entry.key], ['==', 'isCenter', true]];
 
       await ctrl.addFillLayer(
         'zones',
@@ -168,17 +168,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
         ),
         filter: polyFilter,
       );
-      await ctrl.addCircleLayer(
-        'zones',
-        'zones-centers-${entry.key}',
-        CircleLayerProperties(
-          circleColor: entry.value,
-          circleRadius: 6.0,
-          circleStrokeColor: '#ffffff',
-          circleStrokeWidth: 2.0,
-        ),
-        filter: pointFilter,
-      );
+      // Circle dots removed — replaced by text labels only
     }
 
     // Highlight layer: initially matches nothing (id -1 never exists).
@@ -189,7 +179,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
       filter: ['==', 'id', -1],
     );
 
-    // Zone name labels — static color avoids expression-font interaction issues.
+    // Zone name labels
     await ctrl.addSymbolLayer(
       'zones',
       'zones-labels',
@@ -198,11 +188,12 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
         textSize: 13.0,
         textColor: '#0f172a',
         textHaloColor: '#ffffff',
-        textHaloWidth: 2.0,
+        textHaloWidth: 2.5,
         textAllowOverlap: false,
         textIgnorePlacement: false,
-        textAnchor: 'top',
-        textOffset: [0.0, 0.8],
+        textAnchor: 'center',
+        textOffset: [0.0, 0.0],
+        textLetterSpacing: 0.05,
       ),
       filter: ['==', 'isCenter', true],
     );
