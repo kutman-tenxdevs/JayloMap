@@ -176,7 +176,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
     await ctrl.addFillLayer(
       'zones',
       'zones-highlight',
-      FillLayerProperties(fillColor: '#22C55E', fillOpacity: 0.30),
+      const FillLayerProperties(fillColor: '#22C55E', fillOpacity: 0.30),
       filter: ['==', 'id', -1],
     );
 
@@ -242,14 +242,14 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   // ---------------------------------------------------------------------------
 
   Future<void> _addUserLocationMarker(MapLibreMapController ctrl) async {
-    _userRingCircle = await ctrl.addCircle(CircleOptions(
+    _userRingCircle = await ctrl.addCircle(const CircleOptions(
       geometry: kUserLocation,
       circleRadius: 16,
       circleColor: '#22C55E',
       circleOpacity: 0.12,
       circleStrokeWidth: 0,
     ));
-    await ctrl.addCircle(CircleOptions(
+    await ctrl.addCircle(const CircleOptions(
       geometry: kUserLocation,
       circleRadius: 7,
       circleColor: '#FFFFFF',
@@ -631,7 +631,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
         children: [
           MapLibreMap(
             styleString: _styleUrl(isDark),
-            initialCameraPosition: CameraPosition(
+            initialCameraPosition: const CameraPosition(
               target: _overviewCenter,
               zoom: _overviewZoom,
             ),
