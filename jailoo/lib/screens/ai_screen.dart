@@ -1,59 +1,19 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import '../services/ai_service.dart';
-import '../services/app_controller.dart';
 import '../data/zones.dart';
-import '../models/zone.dart';
 import '../theme/colors.dart';
-import '../widgets/health_bar.dart';
 
 // ---------------------------------------------------------------------------
 // Message model
 // ---------------------------------------------------------------------------
 
-enum _Role { user, ai, zoneCard }
+enum _Role { user, ai }
 
 class _Msg {
   final _Role role;
   final String text;
-  final Zone? zone;
-  const _Msg({required this.role, this.text = '', this.zone});
-}
-
-// ---------------------------------------------------------------------------
-// Preset suggestion chips
-// ---------------------------------------------------------------------------
-
-const _presets = [
-  (label: '🌿 Лучшее пастбище', query: 'Какое пастбище сейчас лучшее для выпаса?'),
-  (label: '🐑 Стадо 80 овец', query: 'У меня 80 овец, куда мне лучше идти?'),
-  (label: '❓ Закрытые зоны', query: 'Какие зоны сейчас закрыты и почему?'),
-  (label: '📅 Сары-Булак', query: 'На сколько дней хватит пастбище Сары-Булак?'),
-  (label: '🗺 Сравни ближайшие', query: 'Сравни ближайшие зелёные пастбища между собой'),
-  (label: '⚠️ Опасные зоны', query: 'Где сейчас опасно пасти скот и почему?'),
-];
-
-// Detect "best pasture" type queries — we'll attach a zone card to these.
-bool _wantsRecommendation(String q) {
-  final lower = q.toLowerCase();
-  return lower.contains('лучш') ||
-      lower.contains('куда') ||
-      lower.contains('иди') ||
-      lower.contains('рекомендуй') ||
-      lower.contains('пастбищ') ||
-      lower.contains('советуй') ||
-      lower.contains('ближайш') ||
-      lower.contains('сравни');
-}
-
-// Pick a random healthy (or recovering) zone for the card.
-Zone _pickRecommendedZone() {
-  final rng = Random();
-  final healthy = kZones.where((z) => z.status == 'healthy').toList();
-  if (healthy.isNotEmpty) return healthy[rng.nextInt(healthy.length)];
-  final recovering = kZones.where((z) => z.status == 'recovering').toList();
-  return recovering[rng.nextInt(recovering.length)];
+  const _Msg({required this.role, required this.text});
 }
 
 // ---------------------------------------------------------------------------
@@ -74,9 +34,9 @@ class _AiScreenState extends State<AiScreen> {
   final List<_Msg> _messages = [];
   bool _loading = false;
 
-  Future<void> _sendText(String text) async {
+  Future<void> _send() async {
+    final text = _controller.text.trim();
     if (text.isEmpty || _loading) return;
-    final sendRecommendationCard = _wantsRecommendation(text);
 
     setState(() {
       _messages.add(_Msg(role: _Role.user, text: text));
@@ -89,15 +49,10 @@ class _AiScreenState extends State<AiScreen> {
 
     setState(() {
       _messages.add(_Msg(role: _Role.ai, text: response));
-      if (sendRecommendationCard) {
-        _messages.add(_Msg(role: _Role.zoneCard, zone: _pickRecommendedZone()));
-      }
       _loading = false;
     });
     _scrollDown();
   }
-
-  Future<void> _send() => _sendText(_controller.text.trim());
 
   void _scrollDown() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -237,19 +192,7 @@ class _AiScreenState extends State<AiScreen> {
         if (msg.role == _Role.user) {
           return _UserBubble(text: msg.text, colors: c);
         }
-        if (msg.role == _Role.ai) {
-          return _AiBubble(text: msg.text, colors: c);
-        }
-        if (msg.role == _Role.zoneCard && msg.zone != null) {
-          return _ZoneCard(
-            zone: msg.zone!,
-            colors: c,
-            onRoute: () {
-              context.read<AppController>().goToMap(routeTo: msg.zone);
-            },
-          );
-        }
-        return const SizedBox.shrink();
+        return _AiBubble(text: msg.text, colors: c);
       },
     );
   }
@@ -313,43 +256,6 @@ class _AiScreenState extends State<AiScreen> {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Preset chip widget
-// ---------------------------------------------------------------------------
-
-class _PresetChip extends StatelessWidget {
-  final String label;
-  final JailooColors colors;
-  final VoidCallback onTap;
-  const _PresetChip({
-    required this.label,
-    required this.colors,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-        decoration: BoxDecoration(
-          color: colors.surface,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: colors.border),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 13,
-            color: colors.textPrimary,
-          ),
-        ),
       ),
     );
   }
@@ -442,7 +348,7 @@ class _ThinkingBubbleState extends State<_ThinkingBubble>
   void initState() {
     super.initState();
     _ctrl = AnimationController(
-      duration: const Duration(milliseconds: 1200),
+      duration: const Duration(milliseconds: 5000),
       vsync: this,
     )..repeat();
   }
@@ -517,149 +423,4 @@ class _Dot extends StatelessWidget {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Zone recommendation card
-// ---------------------------------------------------------------------------
 
-class _ZoneCard extends StatelessWidget {
-  final Zone zone;
-  final JailooColors colors;
-  final VoidCallback onRoute;
-  const _ZoneCard({
-    required this.zone,
-    required this.colors,
-    required this.onRoute,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final statusColor = JailooColors.statusColor(zone.status);
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: colors.surface,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: statusColor.withValues(alpha: 0.40)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header
-          Container(
-            padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
-            decoration: BoxDecoration(
-              color: statusColor.withValues(alpha: 0.08),
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(10)),
-            ),
-            child: Row(
-              children: [
-                Icon(Icons.landscape, size: 14, color: statusColor),
-                const SizedBox(width: 6),
-                Text(
-                  'Рекомендую',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: statusColor,
-                    letterSpacing: 0.6,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          // Body
-          Padding(
-            padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.baseline,
-                  textBaseline: TextBaseline.alphabetic,
-                  children: [
-                    Text(
-                      zone.name,
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
-                        color: colors.textPrimary,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      zone.nameEn,
-                      style: TextStyle(fontSize: 12, color: colors.textMuted),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                // Health bar
-                HealthBar(score: zone.healthScore),
-                const SizedBox(height: 10),
-                // Stats row
-                Row(
-                  children: [
-                    _Stat(icon: Icons.pets, label: '${zone.maxHerd} овец', colors: colors),
-                    const SizedBox(width: 16),
-                    _Stat(icon: Icons.calendar_today, label: '${zone.safeDays} дней', colors: colors),
-                    const SizedBox(width: 16),
-                    _Stat(icon: Icons.straighten, label: '${zone.areaKm2.toInt()} км²', colors: colors),
-                  ],
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  zone.elevation,
-                  style: TextStyle(fontSize: 11, color: colors.textMuted),
-                ),
-                const SizedBox(height: 14),
-                // Route button
-                SizedBox(
-                  width: double.infinity,
-                  child: FilledButton.icon(
-                    onPressed: onRoute,
-                    style: FilledButton.styleFrom(
-                      backgroundColor: statusColor,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                    icon: const Icon(Icons.navigation_outlined, size: 16),
-                    label: const Text(
-                      'Проложить маршрут',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _Stat extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final JailooColors colors;
-  const _Stat({required this.icon, required this.label, required this.colors});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 12, color: colors.textMuted),
-        const SizedBox(width: 4),
-        Text(label, style: TextStyle(fontSize: 12, color: colors.textPrimary)),
-      ],
-    );
-  }
-}
