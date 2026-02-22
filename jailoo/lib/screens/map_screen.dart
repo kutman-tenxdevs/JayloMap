@@ -6,6 +6,7 @@ import 'package:maplibre_gl/maplibre_gl.dart';
 import 'package:provider/provider.dart';
 import 'package:http/http.dart' as http;
 import '../data/zones.dart';
+import '../models/herder_profile.dart';
 import '../models/zone.dart';
 import '../theme/colors.dart';
 import '../theme/theme_provider.dart';
@@ -144,9 +145,9 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
 
     // Use richer, more vibrant colors
     for (final entry in {
-      'healthy': '#10B981', // Emerald
-      'recovering': '#F59E0B', // Amber
-      'banned': '#EF4444', // Crimson
+      'healthy': '#00C795',   // Teal
+      'recovering': '#F5A623', // Amber
+      'banned': '#EF4444',    // Crimson
     }.entries) {
       final polyFilter = ['all', ['==', 'status', entry.key], ['!=', 'isCenter', true]];
 
@@ -248,7 +249,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
     _userRingCircle = await ctrl.addCircle(const CircleOptions(
       geometry: kUserLocation,
       circleRadius: 16,
-      circleColor: '#22C55E',
+      circleColor: '#00C795',
       circleOpacity: 0.12,
       circleStrokeWidth: 0,
     ));
@@ -256,7 +257,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
       geometry: kUserLocation,
       circleRadius: 7,
       circleColor: '#FFFFFF',
-      circleStrokeColor: '#22C55E',
+      circleStrokeColor: '#00C795',
       circleStrokeWidth: 2.5,
     ));
   }
@@ -328,7 +329,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
     await ctrl.addLineLayer(
       'route', 'route-line',
       const LineLayerProperties(
-        lineColor: '#22C55E',
+        lineColor: '#00C795',
         lineWidth: 4.5,
         lineCap: 'round',
         lineJoin: 'round',
@@ -362,7 +363,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
     _destCircle = await ctrl.addCircle(CircleOptions(
       geometry: LatLng(zone.lat, zone.lng),
       circleRadius: 11,
-      circleColor: '#22C55E',
+      circleColor: '#00C795',
       circleStrokeColor: '#FFFFFF',
       circleStrokeWidth: 2.5,
     ));
@@ -589,6 +590,20 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
         : 'https://tiles.openfreemap.org/styles/bright';
   }
 
+  void _showZoneList() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _ZoneListSheet(
+        onSelectZone: (zone) {
+          Navigator.pop(context);
+          _selectZone(zone);
+        },
+      ),
+    );
+  }
+
   // ---------------------------------------------------------------------------
   // Build
   // ---------------------------------------------------------------------------
@@ -628,32 +643,25 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
             zoomGesturesEnabled: true,
           ),
 
-          // Top bar
+          // ── Left sidebar toolbar ──────────────────────────────────────────
           SafeArea(
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              child: Row(
+              padding: const EdgeInsets.only(left: 12, top: 16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  _HeaderPill(c: c),
-                  const Spacer(),
-                  // Reset camera
-                  _MapButton(
+                  _SidebarBtn(
                     colors: c,
                     onTap: _resetCamera,
-                    child: Icon(
-                      Icons.explore_outlined,
-                      size: 15,
-                      color: c.textMuted,
-                    ),
+                    child: Icon(Icons.my_location, size: 17, color: c.textMuted),
                   ),
-                  const SizedBox(width: 8),
-                  // Theme toggle
-                  _MapButton(
+                  const SizedBox(height: 8),
+                  _SidebarBtn(
                     colors: c,
                     onTap: () => context.read<ThemeProvider>().toggle(),
                     child: Icon(
                       isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
-                      size: 15,
+                      size: 17,
                       color: c.textMuted,
                     ),
                   ),
@@ -662,9 +670,9 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
             ),
           ),
 
-          // Bottom overlay
+          // ── Bottom overlay ────────────────────────────────────────────────
           Positioned(
-            bottom: 12,
+            bottom: MediaQuery.of(context).padding.bottom + 12,
             left: 16,
             right: 16,
             child: AnimatedSwitcher(
@@ -680,12 +688,12 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                 ),
               ),
               child: KeyedSubtree(
-                key: ValueKey(_fetchingRoute ? 'loading' : hasRoute ? 'route' : 'legend'),
+                key: ValueKey(_fetchingRoute ? 'loading' : hasRoute ? 'route' : 'idle'),
                 child: _fetchingRoute
                     ? _buildRouteLoading(c)
                     : hasRoute
                         ? _buildRouteCard(c)
-                        : _buildLegend(c),
+                        : _buildBottomIdle(c),
               ),
             ),
           ),
@@ -698,22 +706,46 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   // Bottom panels
   // ---------------------------------------------------------------------------
 
-  Widget _buildLegend(JailooColors c) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-      decoration: BoxDecoration(
-        color: c.bg.withValues(alpha: 0.92),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: c.border),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: [
-          _LegendItem(color: JailooColors.healthy, label: 'Safe', textColor: c.textMuted),
-          _LegendItem(color: JailooColors.recovering, label: 'Recovering', textColor: c.textMuted),
-          _LegendItem(color: JailooColors.banned, label: 'Banned', textColor: c.textMuted),
-        ],
-      ),
+  Widget _buildBottomIdle(JailooColors c) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        // Legend chip
+        Expanded(
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+            decoration: BoxDecoration(
+              color: c.bg.withValues(alpha: 0.94),
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(color: c.border),
+              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 12, offset: const Offset(0, 4))],
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                _LegendDot(color: JailooColors.healthy, label: 'Safe', c: c),
+                _LegendDot(color: JailooColors.recovering, label: 'Recovering', c: c),
+                _LegendDot(color: JailooColors.banned, label: 'Banned', c: c),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
+        // Zone list FAB
+        GestureDetector(
+          onTap: _showZoneList,
+          child: Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: c.accent,
+              shape: BoxShape.circle,
+              boxShadow: [BoxShadow(color: c.accent.withValues(alpha: 0.35), blurRadius: 14, offset: const Offset(0, 4))],
+            ),
+            child: const Icon(Icons.list, color: Colors.white, size: 22),
+          ),
+        ),
+      ],
     );
   }
 
@@ -798,22 +830,266 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
 }
 
 // ---------------------------------------------------------------------------
-// Bottom sheet (ZoneSheet removed in favor of DetailScreen)
+// Zone list bottom sheet
 // ---------------------------------------------------------------------------
+
+class _ZoneListSheet extends StatefulWidget {
+  final void Function(Zone zone) onSelectZone;
+  const _ZoneListSheet({required this.onSelectZone});
+
+  @override
+  State<_ZoneListSheet> createState() => _ZoneListSheetState();
+}
+
+class _ZoneListSheetState extends State<_ZoneListSheet> {
+  String _query = '';
+
+  @override
+  Widget build(BuildContext context) {
+    final c = JailooColors.of(context);
+    final profile = context.watch<HerderProfile>();
+    final avatarLetter = profile.name.isNotEmpty ? profile.name[0].toUpperCase() : 'A';
+    final filtered = kZones.where((z) {
+      if (_query.isEmpty) return true;
+      return z.nameEn.toLowerCase().contains(_query.toLowerCase()) ||
+          z.name.toLowerCase().contains(_query.toLowerCase());
+    }).toList();
+
+    return Container(
+      height: MediaQuery.of(context).size.height * 0.78,
+      decoration: BoxDecoration(
+        color: c.bg,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.12), blurRadius: 24, offset: const Offset(0, -4))],
+      ),
+      child: Column(
+        children: [
+          // Drag handle
+          Padding(
+            padding: const EdgeInsets.only(top: 10, bottom: 4),
+            child: Container(
+              width: 36,
+              height: 4,
+              decoration: BoxDecoration(color: c.border, borderRadius: BorderRadius.circular(2)),
+            ),
+          ),
+
+          // Header row
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 12, 4),
+            child: Row(
+              children: [
+                // Avatar
+                Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    color: c.accent.withValues(alpha: 0.12),
+                    shape: BoxShape.circle,
+                    border: Border.all(color: c.accent.withValues(alpha: 0.25)),
+                  ),
+                  child: Center(
+                    child: Text(
+                      avatarLetter,
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: c.accent),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Zone list',
+                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: c.textPrimary)),
+                      Text('${kZones.length} pasture zones · Naryn Oblast',
+                          style: TextStyle(fontSize: 11, color: c.textMuted)),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  onPressed: () => Navigator.pop(context),
+                  icon: Icon(Icons.close, color: c.textMuted, size: 20),
+                  style: IconButton.styleFrom(
+                    backgroundColor: c.surface,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    minimumSize: const Size(36, 36),
+                    padding: EdgeInsets.zero,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Search bar
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+            child: Container(
+              height: 42,
+              decoration: BoxDecoration(
+                color: c.surface,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: c.border),
+              ),
+              child: TextField(
+                onChanged: (v) => setState(() => _query = v),
+                style: TextStyle(fontSize: 14, color: c.textPrimary),
+                decoration: InputDecoration(
+                  hintText: 'Search zones…',
+                  hintStyle: TextStyle(fontSize: 14, color: c.textMuted),
+                  prefixIcon: Icon(Icons.search, size: 18, color: c.textMuted),
+                  border: InputBorder.none,
+                  contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 4),
+
+          // Zone list
+          Expanded(
+            child: ListView.separated(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              itemCount: filtered.length,
+              separatorBuilder: (_, __) => Divider(height: 1, color: c.border),
+              itemBuilder: (_, i) {
+                final zone = filtered[i];
+                final statusColor = JailooColors.statusColor(zone.status);
+                return _ZoneListItem(
+                  zone: zone,
+                  statusColor: statusColor,
+                  c: c,
+                  onTap: () => widget.onSelectZone(zone),
+                );
+              },
+            ),
+          ),
+
+          // Bottom safe area
+          SizedBox(height: MediaQuery.of(context).padding.bottom + 8),
+        ],
+      ),
+    );
+  }
+}
+
+class _ZoneListItem extends StatelessWidget {
+  final Zone zone;
+  final Color statusColor;
+  final JailooColors c;
+  final VoidCallback onTap;
+  const _ZoneListItem({required this.zone, required this.statusColor, required this.c, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final status = zone.status[0].toUpperCase() + zone.status.substring(1);
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 11),
+        child: Row(
+          children: [
+            // Status coloured thumbnail
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: statusColor.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: statusColor.withValues(alpha: 0.35)),
+              ),
+              child: Icon(Icons.grass_outlined, size: 20, color: statusColor),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(zone.nameEn,
+                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: c.textPrimary)),
+                  const SizedBox(height: 3),
+                  Text(
+                    '$status · ${zone.healthScore}/100 · ${zone.maxHerd} sheep cap',
+                    style: TextStyle(fontSize: 11, color: c.textMuted),
+                  ),
+                ],
+              ),
+            ),
+            // Status dot + three-dot menu
+            Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  width: 8,
+                  height: 8,
+                  decoration: BoxDecoration(color: statusColor, shape: BoxShape.circle),
+                ),
+                const SizedBox(height: 6),
+                PopupMenuButton<String>(
+                  iconSize: 16,
+                  icon: Icon(Icons.more_vert, size: 16, color: c.textMuted),
+                  color: c.bg,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10), side: BorderSide(color: c.border)),
+                  itemBuilder: (_) => [
+                    PopupMenuItem(
+                      value: 'view',
+                      child: Row(children: [
+                        Icon(Icons.open_in_new, size: 16, color: c.textMuted),
+                        const SizedBox(width: 8),
+                        Text('View details', style: TextStyle(fontSize: 13, color: c.textPrimary)),
+                      ]),
+                    ),
+                  ],
+                  onSelected: (v) {
+                    if (v == 'view') onTap();
+                  },
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Toolbar widgets
 // ---------------------------------------------------------------------------
 
+class _SidebarBtn extends StatelessWidget {
+  final JailooColors colors;
+  final VoidCallback onTap;
+  final Widget child;
+  const _SidebarBtn({required this.colors, required this.onTap, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 40,
+        height: 40,
+        decoration: BoxDecoration(
+          color: colors.bg.withValues(alpha: 0.95),
+          shape: BoxShape.circle,
+          border: Border.all(color: colors.border, width: 0.5),
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 10, offset: const Offset(0, 2))],
+        ),
+        child: Center(child: child),
+      ),
+    );
+  }
+}
+
+// Kept for legacy route card usage
 class _MapButton extends StatelessWidget {
   final JailooColors colors;
   final VoidCallback onTap;
   final Widget child;
-  const _MapButton({
-    required this.colors,
-    required this.onTap,
-    required this.child,
-  });
+  const _MapButton({required this.colors, required this.onTap, required this.child});
 
   @override
   Widget build(BuildContext context) {
@@ -826,10 +1102,7 @@ class _MapButton extends StatelessWidget {
         decoration: BoxDecoration(
           color: colors.bg.withValues(alpha: 0.92),
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: colors.border,
-            width: 0.5,
-          ),
+          border: Border.all(color: colors.border, width: 0.5),
         ),
         child: Center(child: child),
       ),
@@ -853,28 +1126,41 @@ class _HeaderPill extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Container(
-            width: 7,
-            height: 7,
-            decoration: BoxDecoration(color: c.accent, shape: BoxShape.circle),
-          ),
+          Container(width: 7, height: 7, decoration: BoxDecoration(color: c.accent, shape: BoxShape.circle)),
           const SizedBox(width: 8),
           Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Naryn Oblast',
-                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: c.textPrimary),
-              ),
-              Text(
-                '${kZones.length} pasture zones',
-                style: TextStyle(fontSize: 10, color: c.textMuted),
-              ),
+              Text('Naryn Oblast', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: c.textPrimary)),
+              Text('${kZones.length} pasture zones', style: TextStyle(fontSize: 10, color: c.textMuted)),
             ],
           ),
         ],
       ),
+    );
+  }
+}
+
+class _LegendDot extends StatelessWidget {
+  final Color color;
+  final String label;
+  final JailooColors c;
+  const _LegendDot({required this.color, required this.label, required this.c});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 9,
+          height: 9,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        ),
+        const SizedBox(width: 5),
+        Text(label, style: TextStyle(fontSize: 11, color: c.textMuted)),
+      ],
     );
   }
 }
