@@ -595,12 +595,7 @@ class _ZoneCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
                 // Health bar
-                HealthBar(value: zone.healthScore / 100),
-                const SizedBox(height: 2),
-                Text(
-                  'Здоровье: ${zone.healthScore}/100',
-                  style: TextStyle(fontSize: 11, color: colors.textMuted),
-                ),
+                HealthBar(score: zone.healthScore),
                 const SizedBox(height: 10),
                 // Stats row
                 Row(
