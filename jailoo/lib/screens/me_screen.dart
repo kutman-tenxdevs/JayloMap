@@ -7,18 +7,16 @@ import 'add_pasture_screen.dart';
 // ---------------------------------------------------------------------------
 
 class _Livestock {
-  final String emoji;
   final String label;
   final int count;
-  const _Livestock({required this.emoji, required this.label, required this.count});
+  const _Livestock({required this.label, required this.count});
 }
 
 const _kLivestock = [
-  _Livestock(emoji: '🐑', label: 'Овцы',   count: 340),
-  _Livestock(emoji: '🐐', label: 'Козы',   count: 85),
-  _Livestock(emoji: '🐄', label: 'Коровы', count: 24),
-  _Livestock(emoji: '🐎', label: 'Лошади', count: 18),
-  _Livestock(emoji: '🫏', label: 'Ослы',   count: 4),
+  _Livestock(label: 'Овцы',   count: 340),
+  _Livestock(label: 'Козы',   count: 85),
+  _Livestock(label: 'Коровы', count: 24),
+  _Livestock(label: 'Лошади', count: 18),
 ];
 
 const _kTotalAreaHa = 1470.0;
@@ -297,8 +295,6 @@ class _LivestockCard extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Text(item.emoji, style: const TextStyle(fontSize: 22)),
-          const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
