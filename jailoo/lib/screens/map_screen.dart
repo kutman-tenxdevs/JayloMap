@@ -9,9 +9,6 @@ import '../data/zones.dart';
 import '../models/zone.dart';
 import '../theme/colors.dart';
 import '../theme/theme_provider.dart';
-import '../widgets/health_bar.dart';
-import '../widgets/status_badge.dart';
-import '../widgets/data_card.dart';
 import 'detail_screen.dart';
 
 class MapScreen extends StatefulWidget {
