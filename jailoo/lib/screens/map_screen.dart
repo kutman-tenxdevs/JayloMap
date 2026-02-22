@@ -96,26 +96,45 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   // ---------------------------------------------------------------------------
 
   Map<String, dynamic> _buildZonesGeojson() {
-    final features = kZones.map((zone) {
+    final features = <Map<String, dynamic>>[];
+    
+    for (final zone in kZones) {
       final ring = [
         ...zone.boundary.map((p) => [p.longitude, p.latitude]),
         [zone.boundary.first.longitude, zone.boundary.first.latitude],
       ];
-      return {
+      final props = {
+        'id': zone.id,
+        'status': zone.status,
+        'nameEn': zone.nameEn,
+        'healthScore': zone.healthScore,
+      };
+
+      // Polygon feature
+      features.add({
         'type': 'Feature',
         'id': zone.id.toString(),
-        'properties': {
-          'id': zone.id,
-          'status': zone.status,
-          'nameEn': zone.nameEn,
-          'healthScore': zone.healthScore,
-        },
+        'properties': props,
         'geometry': {
           'type': 'Polygon',
           'coordinates': [ring],
         },
-      };
-    }).toList();
+      });
+
+      // Center point feature for labels/markers
+      features.add({
+        'type': 'Feature',
+        'id': '${zone.id}-center',
+        'properties': {
+          ...props,
+          'isCenter': true,
+        },
+        'geometry': {
+          'type': 'Point',
+          'coordinates': [zone.lng, zone.lat],
+        },
+      });
+    }
 
     return {'type': 'FeatureCollection', 'features': features};
   }
@@ -124,40 +143,51 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
     final geojson = _buildZonesGeojson();
     await ctrl.addSource('zones', GeojsonSourceProperties(data: geojson));
 
-    // Use legacy filter syntax ['==', 'property', value] — the expression
-    // form ['==', ['get', 'property'], value] is not reliably handled by
-    // maplibre_gl 0.21 on Android.
+    // Use richer, more vibrant colors
     for (final entry in {
-      'healthy': '#22C55E',
-      'recovering': '#F59E0B',
-      'banned': '#EF4444',
+      'healthy': '#10B981', // Emerald
+      'recovering': '#F59E0B', // Amber
+      'banned': '#EF4444', // Crimson
     }.entries) {
-      final filter = ['==', 'status', entry.key];
+      final polyFilter = ['all', ['==', 'status', entry.key], ['!=', 'isCenter', true]];
+      final pointFilter = ['all', ['==', 'status', entry.key], ['==', 'isCenter', true]];
+
       await ctrl.addFillLayer(
         'zones',
         'zones-fill-${entry.key}',
-        FillLayerProperties(fillColor: entry.value, fillOpacity: 0.20),
-        filter: filter,
+        FillLayerProperties(fillColor: entry.value, fillOpacity: 0.15),
+        filter: polyFilter,
       );
       await ctrl.addLineLayer(
         'zones',
         'zones-border-${entry.key}',
         LineLayerProperties(
           lineColor: entry.value,
-          lineWidth: 2.0,
+          lineWidth: 2.5,
+          lineOpacity: 0.8,
           lineCap: 'round',
           lineJoin: 'round',
         ),
-        filter: filter,
+        filter: polyFilter,
+      );
+      await ctrl.addCircleLayer(
+        'zones',
+        'zones-centers-${entry.key}',
+        CircleLayerProperties(
+          circleColor: entry.value,
+          circleRadius: 6.0,
+          circleStrokeColor: '#ffffff',
+          circleStrokeWidth: 2.0,
+        ),
+        filter: pointFilter,
       );
     }
 
     // Highlight layer: initially matches nothing (id -1 never exists).
-    // Uses legacy filter so the comparison is reliable.
     await ctrl.addFillLayer(
       'zones',
       'zones-highlight',
-      const FillLayerProperties(fillColor: '#22C55E', fillOpacity: 0.30),
+      const FillLayerProperties(fillColor: '#0f172a', fillOpacity: 0.1),
       filter: ['==', 'id', -1],
     );
 
@@ -167,13 +197,16 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
       'zones-labels',
       const SymbolLayerProperties(
         textField: ['get', 'nameEn'],
-        textSize: 11.0,
-        textColor: '#1a1a1a',
-        textHaloColor: '#FFFFFF',
-        textHaloWidth: 1.5,
+        textSize: 13.0,
+        textColor: '#0f172a',
+        textHaloColor: '#ffffff',
+        textHaloWidth: 2.0,
         textAllowOverlap: false,
         textIgnorePlacement: false,
+        textAnchor: 'top',
+        textOffset: [0.0, 0.8],
       ),
+      filter: ['==', 'isCenter', true],
     );
   }
 
