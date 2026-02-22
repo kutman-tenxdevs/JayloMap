@@ -11,7 +11,8 @@ import '../widgets/data_card.dart';
 
 class DetailScreen extends StatelessWidget {
   final Zone zone;
-  const DetailScreen({super.key, required this.zone});
+  final VoidCallback? onReport;
+  const DetailScreen({super.key, required this.zone, this.onReport});
 
   @override
   Widget build(BuildContext context) {
@@ -129,13 +130,17 @@ class DetailScreen extends StatelessWidget {
                       onPressed: zone.status == 'banned'
                           ? null
                           : () {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text('Reported: grazing at ${zone.nameEn}'),
-                                  backgroundColor: c.surface,
-                                  behavior: SnackBarBehavior.floating,
-                                ),
-                              );
+                              if (onReport != null) {
+                                onReport!();
+                              } else {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('Reported: grazing at ${zone.nameEn}'),
+                                    backgroundColor: c.surface,
+                                    behavior: SnackBarBehavior.floating,
+                                  ),
+                                );
+                              }
                             },
                       child: Text(
                         zone.status == 'banned' ? 'Zone banned' : "Report: I'm grazing here",
