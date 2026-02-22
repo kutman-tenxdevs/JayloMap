@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import '../services/ai_service.dart';
@@ -12,8 +13,8 @@ enum _Role { user, ai }
 
 class _Msg {
   final _Role role;
-  final String text;
-  const _Msg({required this.role, required this.text});
+  String text;
+  _Msg({required this.role, required this.text});
 }
 
 // ---------------------------------------------------------------------------
@@ -33,10 +34,33 @@ class _AiScreenState extends State<AiScreen> {
   final _aiService = AiService();
   final List<_Msg> _messages = [];
   bool _loading = false;
+  bool _streaming = false;
+  String _fullResponse = '';
+  int _streamIndex = 0;
+  Timer? _streamTimer;
+
+  // Preset questions for the empty state
+  static const _presets = [
+    (label: 'Куда вести 60 овец?', query: 'Куда лучше вести 60 овец на выпас?'),
+    (
+      label: 'Какая зона самая здоровая?',
+      query: 'Какая зона сейчас самая здоровая?'
+    ),
+    (label: 'Где безопасно пасти?', query: 'Где сейчас безопасно пасти скот?'),
+    (
+      label: 'Когда откроется Ак-Талаа?',
+      query: 'Когда откроется зона Ак-Талаа?'
+    ),
+  ];
+
+  void _sendText(String text) {
+    _controller.text = text;
+    _send();
+  }
 
   Future<void> _send() async {
     final text = _controller.text.trim();
-    if (text.isEmpty || _loading) return;
+    if (text.isEmpty || _loading || _streaming) return;
 
     setState(() {
       _messages.add(_Msg(role: _Role.user, text: text));
@@ -45,13 +69,43 @@ class _AiScreenState extends State<AiScreen> {
     _controller.clear();
     _scrollDown();
 
-    final response = await _aiService.getRecommendation(text, kZones);
+    // Fetch response + ensure minimum 3-5s thinking time
+    final results = await Future.wait([
+      _aiService.getRecommendation(text, kZones),
+      Future.delayed(Duration(milliseconds: 3000 + Random().nextInt(2000))),
+    ]);
+    final response = results[0] as String;
 
+    if (!mounted) return;
+
+    // Switch from thinking dots to streaming text
     setState(() {
-      _messages.add(_Msg(role: _Role.ai, text: response));
       _loading = false;
+      _streaming = true;
+      _fullResponse = response;
+      _streamIndex = 0;
+      _messages.add(_Msg(role: _Role.ai, text: ''));
     });
     _scrollDown();
+
+    // Reveal characters with natural variation
+    _streamTimer?.cancel();
+    _streamTimer = Timer.periodic(const Duration(milliseconds: 18), (timer) {
+      if (!mounted || _streamIndex >= _fullResponse.length) {
+        timer.cancel();
+        if (mounted) setState(() => _streaming = false);
+        return;
+      }
+
+      // Add 1-3 characters per tick for natural feel
+      final chunk = _fullResponse[_streamIndex] == ' ' ? 2 : 1;
+      _streamIndex = (_streamIndex + chunk).clamp(0, _fullResponse.length);
+
+      setState(() {
+        _messages.last.text = _fullResponse.substring(0, _streamIndex);
+      });
+      _scrollDown();
+    });
   }
 
   void _scrollDown() {
@@ -68,6 +122,7 @@ class _AiScreenState extends State<AiScreen> {
 
   @override
   void dispose() {
+    _streamTimer?.cancel();
     _controller.dispose();
     _scroll.dispose();
     super.dispose();
@@ -192,7 +247,12 @@ class _AiScreenState extends State<AiScreen> {
         if (msg.role == _Role.user) {
           return _UserBubble(text: msg.text, colors: c);
         }
-        return _AiBubble(text: msg.text, colors: c);
+        final isLast = index == _messages.length - 1;
+        return _AiBubble(
+          text: msg.text,
+          colors: c,
+          showCursor: isLast && _streaming,
+        );
       },
     );
   }
@@ -204,7 +264,9 @@ class _AiScreenState extends State<AiScreen> {
   Widget _buildInput(JailooColors c) {
     return Container(
       padding: EdgeInsets.fromLTRB(
-        16, 12, 16,
+        16,
+        12,
+        16,
         MediaQuery.of(context).padding.bottom + 12,
       ),
       decoration: BoxDecoration(
@@ -285,7 +347,8 @@ class _UserBubble extends StatelessWidget {
         ),
         child: Text(
           text,
-          style: const TextStyle(fontSize: 14, color: Colors.white, height: 1.5),
+          style:
+              const TextStyle(fontSize: 14, color: Colors.white, height: 1.5),
         ),
       ),
     );
@@ -296,10 +359,38 @@ class _UserBubble extends StatelessWidget {
 // AI text bubble
 // ---------------------------------------------------------------------------
 
-class _AiBubble extends StatelessWidget {
+class _AiBubble extends StatefulWidget {
   final String text;
   final JailooColors colors;
-  const _AiBubble({required this.text, required this.colors});
+  final bool showCursor;
+  const _AiBubble({
+    required this.text,
+    required this.colors,
+    this.showCursor = false,
+  });
+
+  @override
+  State<_AiBubble> createState() => _AiBubbleState();
+}
+
+class _AiBubbleState extends State<_AiBubble>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _cursorCtrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _cursorCtrl = AnimationController(
+      duration: const Duration(milliseconds: 530),
+      vsync: this,
+    )..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _cursorCtrl.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -311,18 +402,47 @@ class _AiBubble extends StatelessWidget {
         constraints:
             BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.85),
         decoration: BoxDecoration(
-          color: colors.surface,
+          color: widget.colors.surface,
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: colors.border),
+          border: Border.all(color: widget.colors.border),
         ),
-        child: Text(
-          text,
-          style: TextStyle(
-            fontSize: 14,
-            color: colors.textPrimary,
-            height: 1.55,
-          ),
-        ),
+        child: widget.showCursor
+            ? RichText(
+                text: TextSpan(
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: widget.colors.textPrimary,
+                    height: 1.55,
+                    fontFamily: 'DMMono',
+                  ),
+                  children: [
+                    TextSpan(text: widget.text),
+                    WidgetSpan(
+                      alignment: PlaceholderAlignment.middle,
+                      child: AnimatedBuilder(
+                        animation: _cursorCtrl,
+                        builder: (_, __) => Opacity(
+                          opacity: _cursorCtrl.value,
+                          child: Container(
+                            width: 2,
+                            height: 16,
+                            margin: const EdgeInsets.only(left: 1),
+                            color: widget.colors.accent,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            : Text(
+                widget.text,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: widget.colors.textPrimary,
+                  height: 1.55,
+                ),
+              ),
       ),
     );
   }
@@ -383,8 +503,40 @@ class _ThinkingBubbleState extends State<_ThinkingBubble>
               ),
             ),
             const SizedBox(width: 8),
-            ...List.generate(3, (i) => _Dot(ctrl: _ctrl, index: i, colors: widget.colors)),
+            ...List.generate(
+                3, (i) => _Dot(ctrl: _ctrl, index: i, colors: widget.colors)),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Preset question chip
+// ---------------------------------------------------------------------------
+
+class _PresetChip extends StatelessWidget {
+  final String label;
+  final JailooColors colors;
+  final VoidCallback onTap;
+  const _PresetChip(
+      {required this.label, required this.colors, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: colors.surface,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: colors.border),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(fontSize: 13, color: colors.textPrimary),
         ),
       ),
     );
@@ -422,5 +574,3 @@ class _Dot extends StatelessWidget {
     );
   }
 }
-
-
