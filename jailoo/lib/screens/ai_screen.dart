@@ -453,7 +453,7 @@ class _ThinkingBubbleState extends State<_ThinkingBubble>
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              'Ойлоп...',
+              'Ойлоп жатам...',
               style: TextStyle(
                 fontSize: 12,
                 color: widget.colors.textMuted,
