@@ -12,6 +12,7 @@ import '../theme/theme_provider.dart';
 import '../widgets/health_bar.dart';
 import '../widgets/status_badge.dart';
 import '../widgets/data_card.dart';
+import 'detail_screen.dart';
 
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});
@@ -196,7 +197,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
       'zones',
       'zones-labels',
       const SymbolLayerProperties(
-        textField: ['get', 'nameEn'],
+        textField: ['get', 'name'],
         textSize: 13.0,
         textColor: '#0f172a',
         textHaloColor: '#ffffff',
@@ -438,16 +439,17 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
     _animateCamera(zone.center, 12.5);
     _reportPressed = false;
 
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (_) => _ZoneSheet(
-        zone: zone,
-        onReport: () {
-          _reportPressed = true;
-          _startRoute(zone);
-        },
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => DetailScreen(
+          zone: zone,
+          onReport: () {
+            Navigator.pop(context);
+            _reportPressed = true;
+            _startRoute(zone);
+          },
+        ),
       ),
     ).then((_) {
       if (mounted && !_reportPressed) {
@@ -808,172 +810,8 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
 }
 
 // ---------------------------------------------------------------------------
-// Bottom sheet
+// Bottom sheet (ZoneSheet removed in favor of DetailScreen)
 // ---------------------------------------------------------------------------
-
-class _ZoneSheet extends StatelessWidget {
-  final Zone zone;
-  final VoidCallback onReport;
-  const _ZoneSheet({required this.zone, required this.onReport});
-
-  @override
-  Widget build(BuildContext context) {
-    final c = JailooColors.of(context);
-    final statusColor = JailooColors.statusColor(zone.status);
-
-    return DraggableScrollableSheet(
-      initialChildSize: 0.52,
-      minChildSize: 0.25,
-      maxChildSize: 0.85,
-      builder: (context, scrollController) {
-        return Container(
-          decoration: BoxDecoration(
-            color: c.bg,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-            border: Border(top: BorderSide(color: c.border)),
-          ),
-          child: ListView(
-            controller: scrollController,
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
-            children: [
-              Center(
-                child: Container(
-                  width: 36,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: c.surface2,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          zone.name,
-                          style: TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.w700,
-                            color: c.textPrimary,
-                            height: 1.1,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(zone.nameEn, style: TextStyle(fontSize: 13, color: c.textMuted)),
-                      ],
-                    ),
-                  ),
-                  StatusBadge(status: zone.status),
-                ],
-              ),
-              const SizedBox(height: 16),
-              HealthBar(score: zone.healthScore),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(child: DataCard(label: 'Health', value: '${zone.healthScore}', unit: '/100')),
-                  const SizedBox(width: 8),
-                  Expanded(child: DataCard(label: 'Max herd', value: '${zone.maxHerd}', unit: 'sheep')),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Expanded(child: DataCard(label: 'Last grazed', value: '${zone.lastGrazedDaysAgo}', unit: 'days ago')),
-                  const SizedBox(width: 8),
-                  Expanded(child: DataCard(label: 'Safe days', value: '${zone.safeDays}', unit: 'days')),
-                ],
-              ),
-              const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: c.surface,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: c.border),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Details',
-                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: c.textPrimary),
-                    ),
-                    const SizedBox(height: 10),
-                    _InfoRow(label: 'Area', value: '${zone.areaKm2.toStringAsFixed(0)} km²', colors: c),
-                    _InfoRow(label: 'Elevation', value: zone.elevation, colors: c),
-                    const SizedBox(height: 8),
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Icon(Icons.info_outline, size: 14, color: statusColor),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            zone.seasonNote,
-                            style: TextStyle(fontSize: 12, color: c.textMuted, height: 1.4),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-              SizedBox(
-                height: 48,
-                child: FilledButton.icon(
-                  style: FilledButton.styleFrom(
-                    backgroundColor: zone.status == 'banned' ? c.surface2 : c.accent,
-                    foregroundColor: zone.status == 'banned' ? c.textMuted : Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                    elevation: 0,
-                  ),
-                  onPressed: zone.status == 'banned'
-                      ? null
-                      : () {
-                          Navigator.pop(context);
-                          onReport();
-                        },
-                  icon: Icon(zone.status == 'banned' ? Icons.block : Icons.route, size: 16),
-                  label: Text(
-                    zone.status == 'banned' ? 'Zone banned' : "Report: I'm grazing here",
-                    style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-}
-
-class _InfoRow extends StatelessWidget {
-  final String label;
-  final String value;
-  final JailooColors colors;
-  const _InfoRow({required this.label, required this.value, required this.colors});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label, style: TextStyle(fontSize: 12, color: colors.textMuted)),
-          Text(value, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: colors.textPrimary)),
-        ],
-      ),
-    );
-  }
-}
 
 // ---------------------------------------------------------------------------
 // Toolbar widgets
